@@ -1,5 +1,9 @@
 pub fn yes_no(b: bool) {
-    println!("{}", if b { "Yes" } else { "No" });
+    yes_no_custom(b, "Yes", "No");
+}
+
+pub fn yes_no_custom(b: bool, yes: &str, no: &str) {
+    println!("{}", if b { yes } else { no });
 }
 
 #[cfg(test)]
@@ -8,8 +12,13 @@ mod tests {
 
     #[test]
     fn test_yes_no() {
-        // This just tests that it runs, capturing stdout is harder in simple tests
         yes_no(true);
         yes_no(false);
+    }
+
+    #[test]
+    fn test_yes_no_custom() {
+        yes_no_custom(true, "YES", "NO");
+        yes_no_custom(false, "Possible", "Impossible");
     }
 }
