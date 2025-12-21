@@ -2,6 +2,6 @@
 name = "cp_library"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.70.0"
+rust-version = "1.89.0"
 
 [dependencies]
