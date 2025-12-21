@@ -3,5 +3,6 @@ name = "cp_library"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.89.0"
+license = "MIT"
 
 [dependencies]
