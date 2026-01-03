@@ -1,1 +1,2 @@
-pub mod lis;
+mod lis;
+pub use lis::lis;
