@@ -1,12 +1,12 @@
 use std::ops::{Add, Neg, Sub};
 
 #[derive(Clone, Debug)]
-pub struct WeightedUnionFind<T> {
+pub struct WeightedDsu<T> {
     parent_or_size: Vec<i32>,
     diff_weight: Vec<T>,
 }
 
-impl<T> WeightedUnionFind<T>
+impl<T> WeightedDsu<T>
 where
     T: Copy + Default + Add<Output = T> + Sub<Output = T> + Neg<Output = T>,
 {
@@ -84,27 +84,27 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_weighted_union_find() {
-        let mut uf = WeightedUnionFind::<i32>::new(5);
-        uf.merge(0, 1, 2); // weight(1) = weight(0) + 2
-        uf.merge(1, 2, 3); // weight(2) = weight(1) + 3 -> weight(0) + 5
-        uf.merge(3, 4, 10); // weight(4) = weight(3) + 10
+    fn test_weighted_dsu() {
+        let mut dsu = WeightedDsu::<i32>::new(5);
+        dsu.merge(0, 1, 2); // weight(1) = weight(0) + 2
+        dsu.merge(1, 2, 3); // weight(2) = weight(1) + 3 -> weight(0) + 5
+        dsu.merge(3, 4, 10); // weight(4) = weight(3) + 10
 
-        assert_eq!(uf.diff(0, 2), Some(5)); // w(2) - w(0) = 5
-        assert_eq!(uf.diff(0, 1), Some(2));
-        assert_eq!(uf.diff(1, 2), Some(3));
-        assert_eq!(uf.diff(1, 0), Some(-2));
+        assert_eq!(dsu.diff(0, 2), Some(5)); // w(2) - w(0) = 5
+        assert_eq!(dsu.diff(0, 1), Some(2));
+        assert_eq!(dsu.diff(1, 2), Some(3));
+        assert_eq!(dsu.diff(1, 0), Some(-2));
         
-        assert_eq!(uf.same(0, 2), true);
-        assert_eq!(uf.same(0, 3), false);
-        assert_eq!(uf.diff(0, 3), None);
+        assert_eq!(dsu.same(0, 2), true);
+        assert_eq!(dsu.same(0, 3), false);
+        assert_eq!(dsu.diff(0, 3), None);
 
-        uf.merge(2, 4, 5); // weight(4) = weight(2) + 5 -> weight(0) + 10
+        dsu.merge(2, 4, 5); // weight(4) = weight(2) + 5 -> weight(0) + 10
         // weight(4) was weight(3) + 10, so weight(3) 
         // = weight(4) - 10 = (weight(0) + 10) - 10 = weight(0)
 
-        assert_eq!(uf.diff(0, 4), Some(10));
-        assert_eq!(uf.diff(0, 3), Some(0));
-        assert_eq!(uf.size(0), 5);
+        assert_eq!(dsu.diff(0, 4), Some(10));
+        assert_eq!(dsu.diff(0, 3), Some(0));
+        assert_eq!(dsu.size(0), 5);
     }
 }

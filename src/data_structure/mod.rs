@@ -1,1 +1,1 @@
-pub mod weighted_union_find;
+pub mod weighted_dsu;
