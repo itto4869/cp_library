@@ -1,0 +1,243 @@
+# cp_library
+
+競技プログラミング用の Rust ライブラリです。外部依存なしで、よく使うアルゴリズム、データ構造、数値計算、グリッド補助関数、出力補助をまとめています。
+
+## 環境
+
+- Rust edition: 2021
+- Rust version: 1.89.0
+- 依存クレート: なし
+
+## 使い方
+
+別プロジェクトからローカル依存として使う場合:
+
+```toml
+[dependencies]
+cp_library = { path = "../cp_library" }
+```
+
+このリポジトリ内でテストする場合:
+
+```sh
+cargo test
+```
+
+## モジュール一覧
+
+| モジュール | 内容 |
+| --- | --- |
+| `algorithm` | LIS |
+| `data_structure` | implicit treap、重み付き Union-Find |
+| `grid` | 4 近傍・8 近傍 |
+| `math` | 基数変換、組み合わせ、gcd/lcm |
+| `utils` | Yes/No 出力補助 |
+
+## Algorithm
+
+### LIS
+
+`lis` は狭義単調増加部分列の最大長を返します。
+
+```rust
+use cp_library::lis;
+
+let a = vec![1, 3, 5, 2, 4, 6];
+assert_eq!(lis(&a), 4);
+```
+
+- パス: `cp_library::lis` または `cp_library::algorithm::lis`
+- 計算量: `O(n log n)`
+
+## Data Structure
+
+### ImplicitTreap
+
+添字で操作する列を treap で管理します。半開区間 `[l, r)` の遅延反転に対応しています。
+
+```rust
+use cp_library::data_structure::implicit_treap::ImplicitTreap;
+
+let mut treap: ImplicitTreap<_> = (0..5).collect();
+
+treap.insert(2, 99);
+assert_eq!(treap.to_vec(), vec![0, 1, 99, 2, 3, 4]);
+
+treap.reverse(1, 5);
+assert_eq!(treap.to_vec(), vec![0, 3, 2, 99, 1, 4]);
+
+assert_eq!(treap.get(2), Some(&2));
+assert!(treap.set(2, 20));
+assert_eq!(treap.remove(3), Some(99));
+assert_eq!(treap.into_vec(), vec![0, 3, 20, 1, 4]);
+```
+
+主な API:
+
+| API | 説明 |
+| --- | --- |
+| `new()` | 空の treap を作成 |
+| `with_seed(seed)` | 優先度生成 seed を指定して作成 |
+| `len()` / `is_empty()` | 要素数・空判定 |
+| `push_front(value)` / `push_back(value)` | 先頭・末尾へ追加 |
+| `insert(index, value)` | `index` の位置へ挿入 |
+| `remove(index)` | `index` の要素を削除して `Option<T>` を返す |
+| `get(index)` / `get_mut(index)` | `index` の参照・可変参照を取得 |
+| `set(index, value)` | `index` の値を更新し、成功時 `true` |
+| `reverse(l, r)` | 半開区間 `[l, r)` を反転 |
+| `to_vec()` | 現在の列を `Vec<T>` として複製 |
+| `into_vec()` | treap を消費して `Vec<T>` を返す |
+| `clear()` | 空にする |
+
+期待計算量:
+
+- `insert` / `remove` / `get` / `get_mut` / `set` / `reverse`: `O(log n)`
+- `to_vec` / `into_vec`: `O(n)`
+
+注意:
+
+- `insert(index, value)` は `index <= len`、`reverse(l, r)` は `l <= r <= len` を満たさない場合 panic します。
+- `get` / `get_mut` は遅延反転を伝播するため `&mut self` を取ります。
+- `to_vec` は `T: Clone` が必要です。`into_vec` は `T: Clone` 不要です。
+
+### WeightedDsu
+
+重み付き Union-Find です。`merge(x, y, w)` は `weight(y) = weight(x) + w` となるように集合を併合します。
+
+```rust
+use cp_library::data_structure::weighted_dsu::WeightedDsu;
+
+let mut dsu = WeightedDsu::<i64>::new(4);
+
+assert!(dsu.merge(0, 1, 2)); // weight(1) = weight(0) + 2
+assert!(dsu.merge(1, 2, 3)); // weight(2) = weight(1) + 3
+
+assert_eq!(dsu.diff(0, 2), Some(5));
+assert_eq!(dsu.diff(2, 0), Some(-5));
+assert!(dsu.same(0, 2));
+assert_eq!(dsu.size(0), 3);
+assert_eq!(dsu.diff(0, 3), None);
+```
+
+主な API:
+
+| API | 説明 |
+| --- | --- |
+| `new(size)` | `size` 個の要素で初期化 |
+| `find(x)` | 根を返す |
+| `weight(x)` | 根から `x` までの重みを返す |
+| `diff(x, y)` | 同じ集合なら `weight(y) - weight(x)` を返す |
+| `same(x, y)` | 同じ集合か判定 |
+| `merge(x, y, w)` | `weight(y) = weight(x) + w` として併合 |
+| `size(x)` | `x` を含む集合のサイズ |
+
+計算量: ならし `O(alpha(n))`
+
+型 `T` は `Copy + Default + Add + Sub + Neg` を満たす必要があります。
+
+## Grid
+
+### neighbors4 / neighbors8
+
+グリッド境界内の近傍座標を返します。
+
+```rust
+use cp_library::grid::{neighbors4, neighbors8};
+
+assert_eq!(neighbors4(0, 0, 3, 3), vec![(0, 1), (1, 0)]);
+
+let n8 = neighbors8(1, 1, 3, 3);
+assert_eq!(n8.len(), 8);
+assert!(n8.contains(&(0, 0)));
+assert!(n8.contains(&(2, 2)));
+```
+
+- 引数: `(r, c, h, w)`
+- 戻り値: `Vec<(usize, usize)>`
+
+## Math
+
+### convert_base
+
+2 から 36 進数までの基数変換を行います。入力は `Display` 実装型を受け取れます。
+
+```rust
+use cp_library::math::base_conversion::convert_base;
+
+assert_eq!(convert_base("255", 10, 16).unwrap(), "ff");
+assert_eq!(convert_base("ff", 16, 10).unwrap(), "255");
+assert_eq!(convert_base(-10, 10, 2).unwrap(), "-1010");
+```
+
+- パス: `cp_library::math::base_conversion::convert_base`
+- 変換元・変換先の基数は `2..=36`
+- 不正な基数や文字がある場合は `Err(&'static str)` を返します。
+
+### Combination
+
+階乗と逆階乗を前計算して、素数 mod 上の `nCr`、`nPr`、`nHr` を計算します。
+
+```rust
+use cp_library::math::combinations::Combination;
+
+const MOD: u64 = 1_000_000_007;
+let comb = Combination::new(100, MOD);
+
+assert_eq!(comb.n_c_r(5, 2), 10);
+assert_eq!(comb.n_p_r(5, 2), 20);
+assert_eq!(comb.n_h_r(3, 2), 6);
+assert_eq!(comb.fact(5), 120);
+```
+
+- パス: `cp_library::math::combinations::Combination`
+- `modulo` は Fermat の小定理で逆元を計算するため、素数を指定してください。
+- `new(max_n, modulo)` で `0..=max_n` まで前計算します。
+
+計算量:
+
+- 前計算: `O(max_n log modulo)`
+- 各クエリ: `O(1)`
+
+### gcd / lcm
+
+整数型の最大公約数・最小公倍数を計算します。
+
+```rust
+use cp_library::math::numeric::{gcd, lcm, GCD};
+
+assert_eq!(gcd(12u64, 18), 6);
+assert_eq!(lcm(12u64, 18), 36);
+assert_eq!(12usize.gcd(18), 6);
+assert_eq!(12usize.lcm(18), 36);
+```
+
+- パス: `cp_library::math::numeric::{gcd, lcm, GCD}`
+- 対応型: `u8`, `u16`, `u32`, `u64`, `u128`, `usize`, `i8`, `i16`, `i32`, `i64`, `i128`, `isize`
+
+## Utils
+
+### yes_no / yes_no_custom
+
+bool を `"Yes"` / `"No"` などの文字列へ変換します。マクロ版はそのまま `println!` します。
+
+```rust
+use cp_library::utils::{yes_no, yes_no_custom};
+
+assert_eq!(yes_no(true), "Yes");
+assert_eq!(yes_no(false), "No");
+assert_eq!(yes_no_custom(true, "YES", "NO"), "YES");
+
+cp_library::yes_no!(true);
+cp_library::yes_no_custom!(false, "Possible", "Impossible");
+```
+
+関数:
+
+- `yes_no(b) -> &'static str`
+- `yes_no_custom(b, yes, no) -> &str`
+
+マクロ:
+
+- `yes_no!(b)`: `Yes` または `No` を出力
+- `yes_no_custom!(b, yes, no)`: 指定文字列を出力
+
