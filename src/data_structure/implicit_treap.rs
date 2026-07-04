@@ -283,7 +283,7 @@ impl<T> Extend<T> for ImplicitTreap<T> {
     }
 }
 
-impl<T> FromIterator<T> for ImplicitTreap<T> {
+impl<T> std::iter::FromIterator<T> for ImplicitTreap<T> {
     fn from_iter<I>(iter: I) -> Self
     where
         I: IntoIterator<Item = T>,
