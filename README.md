@@ -30,7 +30,7 @@ cargo test
 | `algorithm` | LIS |
 | `data_structure` | implicit treap、重み付き Union-Find |
 | `grid` | 4 近傍・8 近傍 |
-| `math` | 基数変換、組み合わせ、gcd/lcm |
+| `math` | 基数変換、組み合わせ、gcd/lcm、素因数分解 |
 | `utils` | Yes/No 出力補助 |
 
 ## Algorithm
@@ -214,6 +214,21 @@ assert_eq!(12usize.lcm(18), 36);
 - パス: `cp_library::math::numeric::{gcd, lcm, GCD}`
 - 対応型: `u8`, `u16`, `u32`, `u64`, `u128`, `usize`, `i8`, `i16`, `i32`, `i64`, `i128`, `isize`
 
+### prime_factorize
+
+決定的 Miller-Rabin 素数判定と Pollard's Rho 法を使って、`u64` を高速に素因数分解します。
+
+```rust
+use cp_library::math::prime_factorization::prime_factorize;
+
+assert_eq!(prime_factorize(360), vec![(2, 3), (3, 2), (5, 1)]);
+assert_eq!(prime_factorize(1), vec![]);
+```
+
+- 戻り値: 素数の昇順に並んだ `(素因数, 指数)` の `Vec`
+- 対応範囲: `1..=u64::MAX`（`0` は panic）
+- 素数判定は `u64` 全域で決定的です。
+
 ## Utils
 
 ### yes_no / yes_no_custom
@@ -240,4 +255,3 @@ cp_library::yes_no_custom!(false, "Possible", "Impossible");
 
 - `yes_no!(b)`: `Yes` または `No` を出力
 - `yes_no_custom!(b, yes, no)`: 指定文字列を出力
-
