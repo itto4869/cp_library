@@ -30,7 +30,7 @@ cargo test
 | `algorithm` | LIS |
 | `data_structure` | implicit treap、重み付き Union-Find |
 | `grid` | 4 近傍・8 近傍 |
-| `math` | 基数変換、組み合わせ、gcd/lcm、素因数分解 |
+| `math` | 基数変換、組み合わせ、gcd/lcm、素数列挙、素因数分解 |
 | `utils` | Yes/No 出力補助 |
 
 ## Algorithm
@@ -228,6 +228,20 @@ assert_eq!(prime_factorize(1), vec![]);
 - 戻り値: 素数の昇順に並んだ `(素因数, 指数)` の `Vec`
 - 対応範囲: `1..=u64::MAX`（`0` は panic）
 - 素数判定は `u64` 全域で決定的です。
+
+### enumerate_primes
+
+エラトステネスの篩を使い、指定値以下の素数を列挙します。
+
+```rust
+use cp_library::math::prime_enumeration::enumerate_primes;
+
+assert_eq!(enumerate_primes(10), vec![2, 3, 5, 7]);
+assert_eq!(enumerate_primes(1), vec![]);
+```
+
+- 戻り値: 指定値以下の素数を昇順に並べた `Vec<usize>`
+- 計算量: 時間 `O(n log log n)`、空間 `O(n)`
 
 ## Utils
 
