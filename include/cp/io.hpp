@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <iomanip>
 #include <iostream>
+#include <iterator>
 #include <limits>
 #include <ostream>
 #include <stdexcept>
@@ -39,6 +40,20 @@ void write_space_separated(std::ostream& out, const First& first,
 
 inline void write_space_separated(std::ostream&) {}
 
+template <class Range>
+void write_range(std::ostream& out, const Range& range) {
+    auto current = std::begin(range);
+    const auto last = std::end(range);
+    if (current == last) {
+        return;
+    }
+
+    out << *current;
+    while (++current != last) {
+        out << ' ' << *current;
+    }
+}
+
 inline void set_fixed_precision(std::ostream& out, std::size_t digits) {
     const auto max_precision = static_cast<std::size_t>(
         (std::numeric_limits<std::streamsize>::max)());
@@ -71,6 +86,29 @@ void print(const Args&... args) {
 template <class... Args>
 void println(const Args&... args) {
     println_to(std::cout, args...);
+}
+
+/** Write all elements in a range separated by one ASCII space. */
+template <class Range>
+void print_range_to(std::ostream& out, const Range& range) {
+    detail::write_range(out, range);
+}
+
+/** Write all elements in a range separated by spaces, followed by a newline. */
+template <class Range>
+void println_range_to(std::ostream& out, const Range& range) {
+    print_range_to(out, range);
+    out << '\n';
+}
+
+template <class Range>
+void print_range(const Range& range) {
+    print_range_to(std::cout, range);
+}
+
+template <class Range>
+void println_range(const Range& range) {
+    println_range_to(std::cout, range);
 }
 
 /**
