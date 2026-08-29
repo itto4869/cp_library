@@ -28,7 +28,7 @@ cargo test
 | モジュール | 内容 |
 | --- | --- |
 | `algorithm` | LIS |
-| `data_structure` | implicit treap、重み付き Union-Find |
+| `data_structure` | implicit treap、遅延伝搬・反転可能 RBST、重み付き Union-Find |
 | `grid` | 4 近傍・8 近傍 |
 | `math` | 基数変換、組み合わせ、gcd/lcm、素数列挙、素因数分解 |
 | `utils` | Yes/No 出力補助 |
@@ -99,6 +99,105 @@ assert_eq!(treap.into_vec(), vec![0, 3, 20, 1, 4]);
 - `insert(index, value)` は `index <= len`、`reverse(l, r)` は `l <= r <= len` を満たさない場合 panic します。
 - `get` / `get_mut` は遅延反転を伝播するため `&mut self` を取ります。
 - `to_vec` は `T: Clone` が必要です。`into_vec` は `T: Clone` 不要です。
+
+### LazyReversibleRbst
+
+列を randomized binary search tree（RBST）で管理します。要素の挿入・削除に加え、半開区間 `[l, r)` への作用、区間積、区間反転を扱えます。順方向と逆方向の区間積を保持するため、文字列連結や写像合成のような非可換モノイドにも対応します。
+
+次は、区間加算と区間和を扱う例です。
+
+```rust
+use cp_library::data_structure::lazy_reversible_rbst::{
+    LazyReversibleRbst, LazyReversibleRbstSpec,
+};
+
+struct RangeAddRangeSum;
+
+impl LazyReversibleRbstSpec for RangeAddRangeSum {
+    type Value = i64;
+    type Action = i64;
+
+    fn identity() -> Self::Value {
+        0
+    }
+
+    fn combine(left: &Self::Value, right: &Self::Value) -> Self::Value {
+        left + right
+    }
+
+    fn apply(action: &Self::Action, value: &Self::Value, len: usize) -> Self::Value {
+        value + action * len as i64
+    }
+
+    fn compose(new: &Self::Action, old: &Self::Action) -> Self::Action {
+        new + old
+    }
+}
+
+let mut tree: LazyReversibleRbst<RangeAddRangeSum> = (1..=5).collect();
+
+assert_eq!(tree.fold(0, 5), 15);
+tree.apply(1, 4, 10);
+assert_eq!(tree.all_prod(), 45);
+
+tree.reverse(1, 5);
+assert_eq!(tree.to_vec(), vec![1, 5, 14, 13, 12]);
+
+let mut suffix = tree.split_off(3);
+assert_eq!(tree.to_vec(), vec![1, 5, 14]);
+assert_eq!(suffix.to_vec(), vec![13, 12]);
+
+tree.append(&mut suffix);
+assert!(suffix.is_empty());
+```
+
+`LazyReversibleRbstSpec` は、値のモノイドと区間作用を定義します。`Value` と `Action` は `Clone` を実装する必要があり、次の規則を満たす必要があります。
+
+- `combine` は結合的で、`identity()` はその左右単位元です。
+- `apply(f, combine(x, y), x_len + y_len)` は `combine(apply(f, x, x_len), apply(f, y, y_len))` と等しくなります。
+- `compose(new, old)` は `old` を適用した後に `new` を適用する作用を返します。すなわち `apply(compose(new, old), x, len) = apply(new, apply(old, x, len), len)` です。
+- `compose` は結合的です。
+- `apply` は列の反転と可換でなければなりません。同じ作用を各要素へ一様に適用する区間加算・区間代入・アフィン変換などを想定しています。
+
+これらの規則はコンパイラでは検査されません。
+
+主な API:
+
+| API | 説明 |
+| --- | --- |
+| `new()` / `with_seed(seed)` | 空の RBST を作成。`with_seed` は乱数 seed を指定 |
+| `from_iter_with_seed(iter, seed)` | iterator から指定 seed で構築 |
+| `len()` / `is_empty()` | 要素数・空判定 |
+| `push_front(value)` / `push_back(value)` | 先頭・末尾へ追加 |
+| `insert(index, value)` | `index` の位置へ挿入 |
+| `remove(index)` | `index` の要素を削除して `Option<Value>` を返す |
+| `get(index)` | `index` の要素への参照を `Option` で返す |
+| `set(index, value)` | `index` の値を更新し、成功時 `true` |
+| `fold(l, r)` / `prod(l, r)` | `[l, r)` の区間積を返す。`prod` は `fold` の別名 |
+| `all_prod()` | 列全体の積を返す |
+| `apply(l, r, action)` | `[l, r)` の全要素へ作用を適用 |
+| `reverse(l, r)` / `reverse_all()` | 指定区間・列全体を反転 |
+| `split_off(index)` | `[index, len)` を分離して新しい RBST として返す |
+| `append(other)` | `other` の全要素を末尾へ移動し、`other` を空にする |
+| `to_vec()` / `into_vec()` | 現在の列を `Vec<Value>` として返す |
+| `clear()` | 空にする |
+
+期待計算量（`LazyReversibleRbstSpec` の各演算と `Value` / `Action` の clone を `O(1)` とした場合）:
+
+- `new` / `len` / `is_empty` / `all_prod` / `reverse_all`: `O(1)`
+- 挿入・削除・参照・更新・区間積・区間作用・区間反転・`split_off`: 期待 `O(log n)`
+- `append`: 2 つの列の合計長を `n` として期待 `O(log n)`
+- iterator または `Vec` からの構築、`to_vec` / `into_vec` / `clone` / `clear`: `O(n)`
+
+注意:
+
+- すべての区間は半開区間 `[l, r)` です。`l <= r <= len` を満たさない場合、`fold` / `prod` / `apply` / `reverse` は panic します。
+- 空区間では `fold` / `prod` は `identity()` を返し、`apply` / `reverse` は何もしません。
+- `insert(index, value)` と `split_off(index)` は `index <= len` を満たさない場合 panic します。
+- 範囲外の `get` / `remove` は `None`、`set` は `false` を返します。
+- `get` / `fold` / `prod` / `to_vec` は遅延操作を伝播することがあるため `&mut self` を取ります。
+- `new()` は固定 seed を使うため、同じ操作列に対する木の形は再現可能です。期待計算量は擬似乱数列と操作列が独立であることを仮定します。
+- 計算量は乱択による期待値であり、木が偏った場合の最悪計算量は `O(n)` です。
 
 ### WeightedDsu
 
