@@ -29,6 +29,7 @@ cargo test
 | --- | --- |
 | `algorithm` | LIS |
 | `data_structure` | implicit treap、遅延伝搬・反転可能 RBST、重み付き Union-Find |
+| `graph` | ダイクストラ法 |
 | `grid` | 4 近傍・8 近傍 |
 | `math` | 基数変換、組み合わせ、gcd/lcm、素数列挙、素因数分解 |
 | `utils` | Yes/No 出力補助 |
@@ -233,6 +234,25 @@ assert_eq!(dsu.diff(0, 3), None);
 計算量: ならし `O(alpha(n))`
 
 型 `T` は `Copy + Default + Add + Sub + Neg` を満たす必要があります。
+
+## Graph
+
+### dijkstra
+
+`Vec<Vec<(usize, usize)>>` の隣接リストと始点を受け取り、各頂点への最短距離を `Vec<usize>` で返します。各要素は `(行き先の頂点, コスト)` です。
+
+```rust
+use cp_library::graph::dijkstra;
+
+let graph = vec![vec![(1, 4), (2, 1)], vec![], vec![(1, 2)], vec![]];
+assert_eq!(dijkstra(&graph, 0), vec![0, 3, 1, usize::MAX]);
+```
+
+- 引数: `graph: &[Vec<(usize, usize)>]`, `start: usize`（Vec は `&graph` で渡せます）
+- 頂点番号は 0 始まり、コストは非負整数です。無向グラフでは両方向の辺を登録してください。
+- 到達不能、または距離が `usize::MAX` 以上の場合は `usize::MAX` を返します。加算は飽和演算です。
+- 始点や辺の行き先が範囲外の場合は panic します。空グラフも始点が存在しないため panic します。
+- 計算量: 時間 `O(V + E log(E + 1))`、追加空間 `O(V + E)`
 
 ## Grid
 
