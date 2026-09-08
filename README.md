@@ -4,7 +4,7 @@
 
 ## 環境
 
-- Rust edition: 2021
+- Rust edition: 2024
 - Rust version: 1.89.0
 - 依存クレート: なし
 
