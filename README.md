@@ -29,7 +29,7 @@ cargo test
 | --- | --- |
 | `algorithm` | LIS |
 | `data_structure` | implicit treap、遅延伝搬・反転可能 RBST、重み付き Union-Find |
-| `graph` | ダイクストラ法 |
+| `graph` | ダイクストラ法、Functional Graph |
 | `grid` | 4 近傍・8 近傍 |
 | `math` | 基数変換、組み合わせ、gcd/lcm、素数列挙、素因数分解 |
 | `utils` | Yes/No 出力補助 |
@@ -236,6 +236,25 @@ assert_eq!(dsu.diff(0, 3), None);
 型 `T` は `Copy + Default + Add + Sub + Neg` を満たす必要があります。
 
 ## Graph
+
+### FunctionalGraph
+
+各頂点からちょうど 1 本の辺が出る有向グラフです。`next[v]` を頂点 `v` の行き先として構築します。
+
+```rust
+use cp_library::graph::FunctionalGraph;
+
+let graph = FunctionalGraph::new(vec![1, 2, 1, 4, 3, 4, 6]);
+assert_eq!(graph.cycles(), vec![vec![1, 2], vec![3, 4], vec![6]]);
+assert_eq!(graph.next(0), 1);
+```
+
+- `new(next: Vec<usize>)`: 構築。頂点番号は `0..next.len()` で、範囲外の行き先は panic します。空グラフも扱えます。
+- `cycles() -> Vec<Vec<usize>>`: すべてのサイクルを返します。流入するだけの頂点は含みません。
+- 各サイクルは最小の頂点番号から辺の向きに並び、末尾に始点を重複させません。サイクル同士は最小頂点番号の昇順です。自己ループは要素 1 個の列になります。
+- `next(vertex)`: 行き先を返します。範囲外の頂点は panic します。
+- `len()` / `is_empty()`: 頂点数 / 空判定。
+- 計算量: 構築・サイクル抽出は時間 `O(n)`、サイクル抽出の追加空間は `O(n)`。各アクセサは `O(1)`。
 
 ### dijkstra
 
