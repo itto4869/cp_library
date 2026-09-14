@@ -64,6 +64,8 @@ trie.insert(5);
 trie.insert(5);
 trie.insert(10);
 assert_eq!(trie.count(5), 2);
+assert_eq!(trie.count_less(5), 2); // 5 以下
+assert_eq!(trie.count_greater(5), 3); // 5 以上
 assert_eq!(trie.min_xor(3), Some(6)); // 5 ^ 3
 assert_eq!(trie.max_xor(3), Some(9)); // 10 ^ 3
 assert!(trie.remove(5));
@@ -76,6 +78,7 @@ assert_eq!(trie.count(5), 1);
 | `insert(value)` | 1 件追加 |
 | `remove(value)` | 1 件削除し、存在した場合 `true` |
 | `count(value)` / `contains(value)` | 登録数 / 存在判定 |
+| `count_less(value)` / `count_greater(value)` | 指定値以下 / 以上の個数。等しい値と重複登録を含む |
 | `min_xor(x)` / `max_xor(x)` | 登録値との XOR の最小値 / 最大値。空なら `None` |
 | `len()` / `is_empty()` | 重複込みの要素数 / 空判定 |
 | `clear()` | 全要素と内部ノードを削除 |
@@ -97,6 +100,8 @@ trie.insert(&[true]); // 1
 trie.insert(&[false, true]); // 先頭の 0 は無視するので、これも 1
 
 assert_eq!(trie.count(&[true]), 2);
+assert_eq!(trie.count_less(&[true]), 2); // 1 以下
+assert_eq!(trie.count_greater(&[true]), 3); // 1 以上
 assert_eq!(trie.min_xor(&[]), Some(vec![true])); // 1 XOR 0
 assert_eq!(trie.max_xor(&[]), Some(large.clone()));
 assert!(trie.remove(&large));
@@ -105,6 +110,7 @@ assert!(trie.remove(&large));
 - `new()` / `default()`、`len()` / `is_empty()`、`clear()` を提供します。
 - `insert(bits)` / `remove(bits)` は 1 件ずつ追加・削除します。`remove` は存在した場合に `true` を返します。
 - `count(bits)` / `contains(bits)` は先頭の 0 を無視して登録数・存在を判定します。空スライスと 0 だけの列は数値 0 です。
+- `count_less(bits)` / `count_greater(bits)` は指定値以下 / 以上の個数を返します。どちらも等しい値と重複登録を含みます。時間 `O(L + W)`、追加空間 `O(1)` です。
 - `min_xor(x)` / `max_xor(x)` は XOR の数値としての最小値・最大値を `Option<Vec<bool>>` で返します。空の集合では `None`、結果が 0 なら `Some(vec![])`、それ以外は先頭の 0 を除いた上位ビット順です。登録値より長い検索値も使えます。
 - 入力長を `L`、過去に挿入した値の最大有効ビット幅を `W` として、挿入・削除・検索・XOR 検索は `O(L + W)`、要素数・空判定は `O(1)` です。
 - 過去に挿入した異なる値の数を `D` として空間は `O(1 + D * W)`。削除済みの経路は保持し、`clear()` で内部ノードとビット幅をリセットします。
@@ -121,6 +127,8 @@ trie.insert("app");
 trie.insert("apple");
 trie.insert("app");
 assert_eq!(trie.count("app"), 2);
+assert_eq!(trie.count_less("app"), 2); // 辞書順で "app" 以下
+assert_eq!(trie.count_greater("app"), 3); // 辞書順で "app" 以上
 assert_eq!(trie.prefix_count("ap"), 3);
 assert!(trie.starts_with("ap"));
 assert!(!trie.contains("ap"));
@@ -134,11 +142,14 @@ assert_eq!(trie.count("app"), 1);
 | `insert(word)` | 文字列を 1 件追加 |
 | `remove(word)` | 完全一致する文字列を 1 件削除し、存在した場合 `true` |
 | `count(word)` / `contains(word)` | 完全一致する登録数 / 存在判定 |
+| `count_less(word)` / `count_greater(word)` | 辞書順で指定文字列以下 / 以上の個数。等しい文字列と重複登録を含む |
 | `prefix_count(prefix)` / `starts_with(prefix)` | 接頭辞に一致する登録数 / 存在判定 |
 | `len()` / `is_empty()` | 重複込みの文字列数 / 空判定 |
 | `clear()` | 全文字列と内部ノードを削除 |
 
 文字列の引数は `&str` です。空の接頭辞はすべての登録文字列に一致し、空の Trie では `starts_with("")` も `false` です。
+
+`count_less` / `count_greater` の比較順序は Rust の `str` の辞書順と同じです。空文字列は最小で、接頭辞はそれを延長した文字列より小さくなります。言語固有の照合や Unicode 正規化は行いません。これらの操作は各経路の分岐を集計するため、時間 `O(1 + L * (B + 1))`、追加空間 `O(1)` です。
 
 文字数を `L`、最大分岐数を `B` として、検索・挿入・削除は `O(L log(B + 1))`、要素数・空判定は `O(1)` です。空間は過去に登録した異なる接頭辞の数に比例します。削除済みの経路は再利用のため保持し、`clear()` で内部ノードを解放できます。
 

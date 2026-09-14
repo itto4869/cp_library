@@ -10,7 +10,8 @@ struct Node {
 /// A multiset of UTF-8 strings, indexed by Unicode scalar values (`char`).
 ///
 /// Empty strings and duplicates are supported. No Unicode normalization is
-/// performed. String operations take O(L log(B + 1)) time, where L is the
+/// performed. String operations take O(L log(B + 1)) time, except `count_less`
+/// and `count_greater`, which take O(1 + L * (B + 1)) time, where L is the
 /// number of characters and B the maximum branching factor. Deleted nodes
 /// remain available for reuse; space is proportional to the distinct prefixes
 /// ever inserted. `clear` releases all nodes. Traversal and deletion are iterative.
@@ -80,6 +81,39 @@ impl Trie {
 
     pub fn contains(&self, word: &str) -> bool {
         self.count(word) > 0
+    }
+
+    /// Counts strings lexicographically less than or equal to `word`.
+    /// Includes duplicates. Order matches Rust's `str` ordering (no locale or
+    /// normalization rules). Takes O(1 + L * (B + 1)) time and O(1) extra space.
+    pub fn count_less(&self, word: &str) -> usize {
+        let (less, equal) = self.count_before_and_equal(word);
+        less + equal
+    }
+
+    /// Counts strings lexicographically greater than or equal to `word`.
+    /// Includes duplicates. Order matches Rust's `str` ordering (no locale or
+    /// normalization rules). Takes O(1 + L * (B + 1)) time and O(1) extra space.
+    pub fn count_greater(&self, word: &str) -> usize {
+        let (less, _) = self.count_before_and_equal(word);
+        self.len() - less
+    }
+
+    fn count_before_and_equal(&self, word: &str) -> (usize, usize) {
+        let mut node = 0;
+        let mut less = 0;
+        for ch in word.chars() {
+            // A proper prefix and all smaller next characters precede word.
+            less += self.nodes[node].terminal_count;
+            for (_, &child) in self.nodes[node].children.range(..ch) {
+                less += self.nodes[child].count;
+            }
+            match self.nodes[node].children.get(&ch) {
+                Some(&child) => node = child,
+                None => return (less, 0),
+            }
+        }
+        (less, self.nodes[node].terminal_count)
     }
 
     /// Counts strings beginning with `prefix`, including duplicates.
@@ -168,7 +202,72 @@ mod tests {
         let mut trie = Trie::new();
         trie.insert(&word);
         assert!(trie.contains(&word));
+        assert_eq!(trie.count_less(&word), 1);
+        assert_eq!(trie.count_greater(&word), 1);
         assert!(trie.remove(&word));
         assert!(trie.is_empty());
+    }
+
+    #[test]
+    fn inclusive_counts_match_string_order_after_updates() {
+        let mut trie = Trie::new();
+        let mut words = Vec::new();
+        let queries = [
+            "",
+            "a",
+            "ap",
+            "app",
+            "apple",
+            "b",
+            "é",
+            "e\u{301}",
+            "日",
+            "日本",
+            "🦀",
+            "\u{10ffff}",
+        ];
+        let check = |trie: &Trie, words: &Vec<&str>| {
+            for query in queries {
+                assert_eq!(
+                    trie.count_less(query),
+                    words.iter().filter(|&&w| w <= query).count(),
+                    "<= {query:?}"
+                );
+                assert_eq!(
+                    trie.count_greater(query),
+                    words.iter().filter(|&&w| w >= query).count(),
+                    ">= {query:?}"
+                );
+            }
+        };
+        check(&trie, &words);
+        for word in [
+            "",
+            "",
+            "app",
+            "apple",
+            "app",
+            "bat",
+            "日本",
+            "日本語",
+            "é",
+            "e\u{301}",
+            "🦀Rust",
+        ] {
+            trie.insert(word);
+            words.push(word);
+            check(&trie, &words);
+        }
+        assert!(!trie.remove("ap"));
+        while let Some(word) = words.pop() {
+            assert!(trie.remove(word));
+            check(&trie, &words);
+        }
+        trie.insert("app");
+        words.push("app");
+        check(&trie, &words);
+        trie.clear();
+        words.clear();
+        check(&trie, &words);
     }
 }

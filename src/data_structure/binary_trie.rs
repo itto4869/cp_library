@@ -77,6 +77,36 @@ impl BinaryTrie {
         self.count(value) > 0
     }
 
+    /// Counts values less than or equal to `value`, including duplicates.
+    /// Takes O(64) time and O(1) extra space.
+    pub fn count_less(&self, value: u64) -> usize {
+        self.count_inclusive(value, false)
+    }
+
+    /// Counts values greater than or equal to `value`, including duplicates.
+    /// Takes O(64) time and O(1) extra space.
+    pub fn count_greater(&self, value: u64) -> usize {
+        self.count_inclusive(value, true)
+    }
+
+    fn count_inclusive(&self, value: u64, greater: bool) -> usize {
+        let mut node = 0;
+        let mut count = 0;
+        for bit in (0..64).rev() {
+            let branch = ((value >> bit) & 1) as usize;
+            if branch != usize::from(greater) {
+                if let Some(child) = self.nodes[node].children[usize::from(greater)] {
+                    count += self.nodes[child].count;
+                }
+            }
+            match self.nodes[node].children[branch] {
+                Some(child) => node = child,
+                None => return count,
+            }
+        }
+        count + self.nodes[node].count
+    }
+
     /// Removes one occurrence, returning whether it was present.
     pub fn remove(&mut self, value: u64) -> bool {
         if !self.contains(value) {
@@ -176,6 +206,16 @@ mod tests {
                 values.push(value);
             }
             assert_eq!(trie.len(), values.len());
+            for query in [0, value, seed, u64::MAX] {
+                assert_eq!(
+                    trie.count_less(query),
+                    values.iter().filter(|&&v| v <= query).count()
+                );
+                assert_eq!(
+                    trie.count_greater(query),
+                    values.iter().filter(|&&v| v >= query).count()
+                );
+            }
             assert_eq!(
                 trie.count(value),
                 values.iter().filter(|&&v| v == value).count()
@@ -183,5 +223,30 @@ mod tests {
             assert_eq!(trie.min_xor(seed), values.iter().map(|v| v ^ seed).min());
             assert_eq!(trie.max_xor(seed), values.iter().map(|v| v ^ seed).max());
         }
+    }
+
+    #[test]
+    fn inclusive_counts_at_u64_boundaries() {
+        let mut trie = BinaryTrie::new();
+        for query in [0, 1 << 63, u64::MAX] {
+            assert_eq!(trie.count_less(query), 0);
+            assert_eq!(trie.count_greater(query), 0);
+        }
+        for value in [0, 0, 1 << 63, u64::MAX, u64::MAX] {
+            trie.insert(value);
+        }
+        assert_eq!(trie.count_less(0), 2);
+        assert_eq!(trie.count_greater(0), 5);
+        assert_eq!(trie.count_less(1 << 63), 3);
+        assert_eq!(trie.count_greater(1 << 63), 3);
+        assert_eq!(trie.count_less(u64::MAX), 5);
+        assert_eq!(trie.count_greater(u64::MAX), 2);
+        assert!(trie.remove(u64::MAX));
+        assert!(trie.remove(u64::MAX));
+        assert_eq!(trie.count_greater(u64::MAX), 0);
+        assert_eq!(trie.count_less(u64::MAX), 3);
+        trie.clear();
+        assert_eq!(trie.count_less(u64::MAX), 0);
+        assert_eq!(trie.count_greater(0), 0);
     }
 }

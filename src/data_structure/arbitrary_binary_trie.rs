@@ -120,6 +120,40 @@ impl ArbitraryBinaryTrie {
         self.count(bits) > 0
     }
 
+    /// Counts values less than or equal to `bits`, including duplicates.
+    /// Leading zeros are ignored. Takes O(L + W) time and O(1) extra space.
+    pub fn count_less(&self, bits: &[bool]) -> usize {
+        self.count_inclusive(bits, false)
+    }
+
+    /// Counts values greater than or equal to `bits`, including duplicates.
+    /// Leading zeros are ignored. Takes O(L + W) time and O(1) extra space.
+    pub fn count_greater(&self, bits: &[bool]) -> usize {
+        self.count_inclusive(bits, true)
+    }
+
+    fn count_inclusive(&self, bits: &[bool], greater: bool) -> usize {
+        let bits = significant(bits);
+        if bits.len() > self.width {
+            return if greater { 0 } else { self.len() };
+        }
+        let mut node = self.root;
+        let mut count = 0;
+        for bit in padded(bits, self.width) {
+            // The opposite subtree qualifies once this bit determines order.
+            if bit != greater {
+                if let Some(child) = self.nodes[node].children[usize::from(greater)] {
+                    count += self.nodes[child].count;
+                }
+            }
+            match self.nodes[node].children[usize::from(bit)] {
+                Some(child) => node = child,
+                None => return count,
+            }
+        }
+        count + self.nodes[node].count
+    }
+
     /// Removes one occurrence, returning whether the value was present.
     pub fn remove(&mut self, bits: &[bool]) -> bool {
         if !self.contains(bits) {
@@ -233,6 +267,16 @@ mod tests {
                 values.push(value);
             }
             assert_eq!(trie.len(), values.len());
+            for query in [0, value, seed, u128::MAX] {
+                assert_eq!(
+                    trie.count_less(&bits(query)),
+                    values.iter().filter(|&&v| v <= query).count()
+                );
+                assert_eq!(
+                    trie.count_greater(&bits(query)),
+                    values.iter().filter(|&&v| v >= query).count()
+                );
+            }
             assert_eq!(
                 trie.count(&bits(value)),
                 values.iter().filter(|&&v| v == value).count()
@@ -269,5 +313,50 @@ mod tests {
         assert_eq!(trie.max_xor(&[]), Some(vec![true]));
         trie.insert(&large);
         assert!(trie.contains(&large));
+        assert_eq!(trie.count_less(&large), 2);
+        assert_eq!(trie.count_greater(&large), 1);
+        assert_eq!(trie.count_less(&query), 2);
+        assert_eq!(trie.count_greater(&query), 0);
+        assert!(trie.remove(&large));
+        assert_eq!(trie.count_less(&large), 1);
+        assert_eq!(trie.count_greater(&large), 0);
+    }
+
+    #[test]
+    fn inclusive_counts_with_duplicates_zero_and_deleted_paths() {
+        let mut trie = ArbitraryBinaryTrie::new();
+        assert_eq!(trie.count_less(&[]), 0);
+        assert_eq!(trie.count_greater(&[]), 0);
+        trie.insert(&[]);
+        trie.insert(&[false]);
+        assert_eq!(trie.count_less(&[]), 2);
+        assert_eq!(trie.count_greater(&[]), 2);
+        for value in [2, 2, 5] {
+            trie.insert(&bits(value));
+        }
+        for (query, less, greater) in [
+            (0, 2, 5),
+            (1, 2, 3),
+            (2, 4, 3),
+            (3, 4, 1),
+            (5, 5, 1),
+            (6, 5, 0),
+        ] {
+            let mut padded_query = vec![false; 3];
+            padded_query.extend(bits(query));
+            assert_eq!(trie.count_less(&padded_query), less);
+            assert_eq!(trie.count_greater(&padded_query), greater);
+        }
+        assert!(trie.remove(&bits(2)));
+        assert_eq!(trie.count_less(&bits(2)), 3);
+        assert_eq!(trie.count_greater(&bits(2)), 2);
+        for value in [0, 0, 2, 5] {
+            assert!(trie.remove(&bits(value)));
+        }
+        assert_eq!(trie.count_less(&bits(2)), 0);
+        assert_eq!(trie.count_greater(&bits(2)), 0);
+        trie.clear();
+        assert_eq!(trie.count_less(&bits(5)), 0);
+        assert_eq!(trie.count_greater(&[]), 0);
     }
 }
