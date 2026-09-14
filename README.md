@@ -28,7 +28,7 @@ cargo test
 | モジュール | 内容 |
 | --- | --- |
 | `algorithm` | LIS |
-| `data_structure` | implicit treap、遅延伝搬・反転可能 RBST、重み付き Union-Find |
+| `data_structure` | Binary Trie（u64・任意長）、Trie 木、implicit treap、遅延伝搬・反転可能 RBST、重み付き Union-Find |
 | `graph` | ダイクストラ法、Functional Graph |
 | `grid` | 4 近傍・8 近傍 |
 | `math` | 基数変換、組み合わせ、gcd/lcm、素数列挙、素因数分解 |
@@ -51,6 +51,96 @@ assert_eq!(lis(&a), 4);
 - 計算量: `O(n log n)`
 
 ## Data Structure
+
+### BinaryTrie
+
+`u64` 全域を扱う 64 ビットの Binary Trie です。重複を含む整数の集合を管理します。
+
+```rust
+use cp_library::data_structure::binary_trie::BinaryTrie;
+
+let mut trie = BinaryTrie::new();
+trie.insert(5);
+trie.insert(5);
+trie.insert(10);
+assert_eq!(trie.count(5), 2);
+assert_eq!(trie.min_xor(3), Some(6)); // 5 ^ 3
+assert_eq!(trie.max_xor(3), Some(9)); // 10 ^ 3
+assert!(trie.remove(5));
+assert_eq!(trie.count(5), 1);
+```
+
+| API | 説明 |
+| --- | --- |
+| `new()` / `default()` | 空の Binary Trie を作成 |
+| `insert(value)` | 1 件追加 |
+| `remove(value)` | 1 件削除し、存在した場合 `true` |
+| `count(value)` / `contains(value)` | 登録数 / 存在判定 |
+| `min_xor(x)` / `max_xor(x)` | 登録値との XOR の最小値 / 最大値。空なら `None` |
+| `len()` / `is_empty()` | 重複込みの要素数 / 空判定 |
+| `clear()` | 全要素と内部ノードを削除 |
+
+`min_xor` / `max_xor` が返すのは XOR の計算結果です。探索・挿入・削除は `O(64)`、要素数・空判定は `O(1)` です。削除済みの経路は再利用のため保持するため、空間は過去に挿入した異なる値の数を `D` として `O(1 + 64D)` です。`clear()` で内部ノードを解放できます。
+
+### ArbitraryBinaryTrie
+
+64 ビットを超える非負整数を扱う任意長の Binary Trie です。上位ビットから並べた `&[bool]` を渡します。ビット幅は挿入時に自動で拡張され、異なる長さの値を混在できます。外部クレートは不要です。
+
+```rust
+use cp_library::data_structure::arbitrary_binary_trie::ArbitraryBinaryTrie;
+
+let mut trie = ArbitraryBinaryTrie::new();
+let mut large = vec![false; 201];
+large[0] = true; // 2^200
+trie.insert(&large);
+trie.insert(&[true]); // 1
+trie.insert(&[false, true]); // 先頭の 0 は無視するので、これも 1
+
+assert_eq!(trie.count(&[true]), 2);
+assert_eq!(trie.min_xor(&[]), Some(vec![true])); // 1 XOR 0
+assert_eq!(trie.max_xor(&[]), Some(large.clone()));
+assert!(trie.remove(&large));
+```
+
+- `new()` / `default()`、`len()` / `is_empty()`、`clear()` を提供します。
+- `insert(bits)` / `remove(bits)` は 1 件ずつ追加・削除します。`remove` は存在した場合に `true` を返します。
+- `count(bits)` / `contains(bits)` は先頭の 0 を無視して登録数・存在を判定します。空スライスと 0 だけの列は数値 0 です。
+- `min_xor(x)` / `max_xor(x)` は XOR の数値としての最小値・最大値を `Option<Vec<bool>>` で返します。空の集合では `None`、結果が 0 なら `Some(vec![])`、それ以外は先頭の 0 を除いた上位ビット順です。登録値より長い検索値も使えます。
+- 入力長を `L`、過去に挿入した値の最大有効ビット幅を `W` として、挿入・削除・検索・XOR 検索は `O(L + W)`、要素数・空判定は `O(1)` です。
+- 過去に挿入した異なる値の数を `D` として空間は `O(1 + D * W)`。削除済みの経路は保持し、`clear()` で内部ノードとビット幅をリセットします。
+
+### Trie
+
+Unicode の `char` 単位で文字列を管理する Trie 木です。重複登録と空文字列に対応し、Unicode の正規化は行いません。
+
+```rust
+use cp_library::data_structure::trie::Trie;
+
+let mut trie = Trie::new();
+trie.insert("app");
+trie.insert("apple");
+trie.insert("app");
+assert_eq!(trie.count("app"), 2);
+assert_eq!(trie.prefix_count("ap"), 3);
+assert!(trie.starts_with("ap"));
+assert!(!trie.contains("ap"));
+assert!(trie.remove("app"));
+assert_eq!(trie.count("app"), 1);
+```
+
+| API | 説明 |
+| --- | --- |
+| `new()` / `default()` | 空の Trie を作成 |
+| `insert(word)` | 文字列を 1 件追加 |
+| `remove(word)` | 完全一致する文字列を 1 件削除し、存在した場合 `true` |
+| `count(word)` / `contains(word)` | 完全一致する登録数 / 存在判定 |
+| `prefix_count(prefix)` / `starts_with(prefix)` | 接頭辞に一致する登録数 / 存在判定 |
+| `len()` / `is_empty()` | 重複込みの文字列数 / 空判定 |
+| `clear()` | 全文字列と内部ノードを削除 |
+
+文字列の引数は `&str` です。空の接頭辞はすべての登録文字列に一致し、空の Trie では `starts_with("")` も `false` です。
+
+文字数を `L`、最大分岐数を `B` として、検索・挿入・削除は `O(L log(B + 1))`、要素数・空判定は `O(1)` です。空間は過去に登録した異なる接頭辞の数に比例します。削除済みの経路は再利用のため保持し、`clear()` で内部ノードを解放できます。
 
 ### ImplicitTreap
 
