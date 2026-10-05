@@ -28,7 +28,7 @@ cargo test
 | モジュール | 内容 |
 | --- | --- |
 | `algorithm` | LIS |
-| `data_structure` | Binary Trie（u64・任意長）、Trie 木、implicit treap、遅延伝搬・反転可能 RBST、重み付き Union-Find |
+| `data_structure` | IntervalSet、Binary Trie（u64・任意長）、Trie 木、implicit treap、遅延伝搬・反転可能 RBST、重み付き Union-Find |
 | `graph` | ダイクストラ法、Functional Graph |
 | `grid` | 4 近傍・8 近傍 |
 | `math` | 基数変換、組み合わせ、gcd/lcm、素数列挙、素因数分解 |
@@ -51,6 +51,39 @@ assert_eq!(lis(&a), 4);
 - 計算量: `O(n log n)`
 
 ## Data Structure
+
+### IntervalSet
+
+`intervalset` モジュールの `IntervalSet` は、`i64` を端点とする半開区間 `[l, r)` の集合を `BTreeSet` で管理します。重なる区間や隣接する区間は自動で結合します。
+
+```rust
+use cp_library::data_structure::intervalset::IntervalSet;
+
+let mut set = IntervalSet::new();
+set.insert(1, 4);
+set.insert(4, 8);
+assert_eq!(set.iter().collect::<Vec<_>>(), vec![(1, 8)]);
+set.remove(3, 6);
+assert_eq!(set.iter().collect::<Vec<_>>(), vec![(1, 3), (6, 8)]);
+assert!(set.contains(2));
+assert!(!set.contains(3));
+```
+
+| API | 説明 |
+| --- | --- |
+| `new()` / `default()` | 空の区間集合を作成 |
+| `insert(l, r)` | `[l, r)` を追加し、重複・隣接区間を結合 |
+| `remove(l, r)` | `[l, r)` を削除し、必要なら区間を分割 |
+| `contains(point)` | 点がいずれかの区間に含まれるか判定 |
+| `contains_range(l, r)` | `[l, r)` 全体が覆われているか判定。空区間は `true` |
+| `interval_containing(point)` | 点を含む区間を `Option<(i64, i64)>` で返す |
+| `iter()` | 左端の昇順で `(l, r)` を列挙 |
+| `len()` / `is_empty()` | 保持する区間数 / 空判定 |
+| `clear()` | 全区間を削除 |
+
+空区間の追加・削除は何も変更せず、`l > r` は panic します。端点に `i64::MIN` / `i64::MAX` も使えますが、右端を含まないため `i64::MAX` 自体を覆うことはできません。重複追加は登録数を増やさず、削除は指定範囲を集合から取り除きます。
+
+区間数を `n`、操作で影響する区間数を `k` として、追加・削除は `O((k + 1) log(n + 1))`、包含判定は `O(log(n + 1))`、区間数・空判定は `O(1)`、全区間の列挙は `O(n)` です。保持空間は `O(n)` です。
 
 ### BinaryTrie
 
