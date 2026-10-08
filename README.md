@@ -1,12 +1,12 @@
 # cp_library
 
-競技プログラミング用の Rust ライブラリです。外部依存なしで、よく使うアルゴリズム、データ構造、数値計算、グリッド補助関数、出力補助をまとめています。
+競技プログラミング用の Rust ライブラリです。よく使うアルゴリズム、データ構造、数値計算、グリッド補助関数、出力補助をまとめています。
 
 ## 環境
 
 - Rust edition: 2024
 - Rust version: 1.89.0
-- 依存クレート: なし
+- 依存クレート: `ac-library-rs = "0.2.0"`（遅延セグメント木用 MapMonoid）
 
 ## 使い方
 
@@ -28,7 +28,7 @@ cargo test
 | モジュール | 内容 |
 | --- | --- |
 | `algorithm` | LIS |
-| `data_structure` | IntervalSet、Binary Trie（u64・任意長）、Trie 木、implicit treap、遅延伝搬・反転可能 RBST、重み付き Union-Find |
+| `data_structure` | 遅延セグメント木用 MapMonoid、IntervalSet、Binary Trie（u64・任意長）、Trie 木、implicit treap、遅延伝搬・反転可能 RBST、重み付き Union-Find |
 | `graph` | ダイクストラ法、Functional Graph |
 | `grid` | 4 近傍・8 近傍 |
 | `math` | 基数変換、組み合わせ、gcd/lcm、素数列挙、素因数分解 |
@@ -51,6 +51,50 @@ assert_eq!(lis(&a), 4);
 - 計算量: `O(n log n)`
 
 ## Data Structure
+
+### 遅延セグメント木用 MapMonoid
+
+`data_structure::lazy_segtree_map_monoid` は [ac-library-rs の MapMonoid](https://docs.rs/ac-library-rs/0.2.0/ac_library/lazysegtree/trait.MapMonoid.html) を実装する型を提供します。利用側でも `ac-library-rs = "0.2.0"` を依存に追加してください。
+
+| 型 | 更新 / 取得 | 作用 `F` | 集約値 `S` |
+| --- | --- | --- | --- |
+| `RangeAddSum<T = i64>` | 区間加算 / 和 | `T` | `SumLen<T>` |
+| `RangeAssignSum<T = i64>` | 区間代入 / 和 | `Option<T>` | `SumLen<T>` |
+| `RangeAffineSum<T = i64>` | `x → a*x+b` / 和 | `(T, T)` | `SumLen<T>` |
+| `RangeAddMin` | 区間加算 / 最小値 | `i64` | `Option<i64>` |
+| `RangeAddMax` | 区間加算 / 最大値 | `i64` | `Option<i64>` |
+| `RangeAssignMin` | 区間代入 / 最小値 | `Option<i64>` | `Option<i64>` |
+| `RangeAssignMax` | 区間代入 / 最大値 | `Option<i64>` | `Option<i64>` |
+
+```rust
+use ac_library::{LazySegtree, ModInt998244353 as Mint};
+use cp_library::data_structure::lazy_segtree_map_monoid::{
+    RangeAddSum, RangeAssignMin, RangeAffineSum, SumLen,
+};
+
+let leaves = vec![1, 2, 3].into_iter().map(SumLen::new).collect::<Vec<_>>();
+let mut sums = LazySegtree::<RangeAddSum>::from(leaves);
+sums.apply_range(0..2, 10);
+assert_eq!(sums.prod(0..3).sum, 26);
+
+let mut mins = LazySegtree::<RangeAssignMin>::from(vec![Some(3), Some(7)]);
+mins.apply_range(.., Some(0));
+assert_eq!(mins.all_prod(), Some(0));
+
+let mut affine = LazySegtree::<RangeAffineSum<Mint>>::from(
+    vec![SumLen::new(Mint::new(2)); 3],
+);
+affine.apply_range(.., (Mint::new(3), Mint::new(1)));
+assert_eq!(affine.all_prod().sum.val(), 21);
+```
+
+- `SumLen::new(value)` は和が `value`、長さが 1 の葉を作ります。集約結果は公開フィールド `sum` / `len` から取得できます。空区間の単位元は和 0・長さ 0 です。
+- 最小値・最大値の葉は `Some(value)`、空区間は `None` です。空区間に作用しても `None` を保ちます。
+- 代入作用の `None` は何もしない操作です。0 を代入するときは `Some(0)` を使います。
+- **`LazySegtree::new(n)` は空区間の単位元で初期化されます。** 値 0 の配列を作る場合も `vec![SumLen::new(0); n]` や `vec![Some(0); n]` から構築してください。
+- `composition(f, g)` は `g` の後に `f` を適用します。アフィン作用では `(a_f*a_g, a_f*b_g+b_f)` です。
+- 和の型 `T` は `Copy + From<i64> + Add<Output = T> + Mul<Output = T>` を満たす半環を想定します。`i64`、`i128`、ACL の modint を使用できます。整数の和・積・作用の合成は中間値も型の範囲内、要素数は `i64` の範囲内で使用してください。
+- 各 MapMonoid 演算は `O(1)`（`T` の演算を定数時間とする）。セグメント木の区間更新・区間取得は `O(log n)` です。
 
 ### IntervalSet
 
