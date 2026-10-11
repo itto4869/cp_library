@@ -29,7 +29,7 @@ cargo test
 | --- | --- |
 | `algorithm` | LIS |
 | `data_structure` | 遅延セグメント木用 MapMonoid、IntervalSet、Binary Trie（u64・任意長）、Trie 木、implicit treap、遅延伝搬・反転可能 RBST、重み付き Union-Find |
-| `graph` | ダイクストラ法、Functional Graph |
+| `graph` | ダイクストラ法、Functional Graph、根付き木の親・走査順序 |
 | `grid` | 4 近傍・8 近傍 |
 | `math` | 基数変換、組み合わせ、gcd/lcm、素数列挙、素因数分解 |
 | `utils` | Yes/No 出力補助 |
@@ -414,6 +414,26 @@ assert_eq!(dsu.diff(0, 3), None);
 型 `T` は `Copy + Default + Add + Sub + Neg` を満たす必要があります。
 
 ## Graph
+
+### rooted_tree
+
+無向木の隣接リスト `Vec<Vec<usize>>` と根のインデックスを受け取り、親の配列と根から葉への幅優先順序を返します。
+
+```rust
+use cp_library::graph::rooted_tree;
+
+let tree = vec![vec![1, 2], vec![0, 3], vec![0], vec![1]];
+let (parent, order) = rooted_tree(&tree, 0);
+assert_eq!(parent, vec![0, 0, 0, 1]);
+assert_eq!(order, vec![0, 1, 2, 3]);
+```
+
+- 引数: `tree: &[Vec<usize>]`, `root: usize`。各辺は両方向に 1 回ずつ登録します。
+- 戻り値: `(Vec<usize>, Vec<usize>)`。`parent[v]` は頂点 `v` の親で、根の親は根自身です。
+- `order` は全頂点を根からの深さが浅い順に並べます。同じ深さでは隣接リストからの発見順です。根から葉への個別の経路一覧ではなく、全頂点の走査順序です。
+- `order.iter().rev()` を使うと子から親への順序になり、部分木の集計などの木 DP に利用できます。
+- 空グラフ、範囲外の頂点、無向木でない入力は panic します。
+- 時間・追加空間は `O(n)`。再帰を使わないため、深い木にも対応します。
 
 ### FunctionalGraph
 
