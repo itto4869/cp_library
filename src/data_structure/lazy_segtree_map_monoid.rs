@@ -145,9 +145,9 @@ macro_rules! extrema {
         #[doc = $doc]
         /// `None` is the empty segment; use `Some(value)` for ordinary leaves.
         #[derive(Clone, Copy, Debug)]
-        pub struct $monoid;
-        impl Monoid for $monoid {
-            type S = Option<i64>;
+        pub struct $monoid<T = i64>(PhantomData<T>);
+        impl<T: Copy + Ord> Monoid for $monoid<T> {
+            type S = Option<T>;
             fn identity() -> Self::S { None }
             fn binary_operation(a: &Self::S, b: &Self::S) -> Self::S {
                 match (*a, *b) {
@@ -156,24 +156,26 @@ macro_rules! extrema {
                 }
             }
         }
-        #[doc = concat!("Range addition with `", stringify!($monoid), "`. Action: `i64`.")]
+        #[doc = concat!("Range addition with `", stringify!($monoid), "`. Action: `T`.")]
         #[derive(Clone, Copy, Debug)]
-        pub struct $add;
-        impl MapMonoid for $add {
-            type M = $monoid;
-            type F = i64;
-            fn identity_map() -> Self::F { 0 }
-            fn mapping(f: &Self::F, x: &Option<i64>) -> Option<i64> { x.map(|x| x + *f) }
+        /// Requires `T::default()` to be zero and addition to preserve order.
+        /// All arithmetic, including composed actions, must stay in range.
+        pub struct $add<T = i64>(PhantomData<T>);
+        impl<T: Copy + Ord + Default + Add<Output = T>> MapMonoid for $add<T> {
+            type M = $monoid<T>;
+            type F = T;
+            fn identity_map() -> Self::F { T::default() }
+            fn mapping(f: &Self::F, x: &Option<T>) -> Option<T> { x.map(|x| x + *f) }
             fn composition(f: &Self::F, g: &Self::F) -> Self::F { *f + *g }
         }
         #[doc = concat!("Range assignment with `", stringify!($monoid), "`. `None` is the identity action.")]
         #[derive(Clone, Copy, Debug)]
-        pub struct $assign;
-        impl MapMonoid for $assign {
-            type M = $monoid;
-            type F = Option<i64>;
+        pub struct $assign<T = i64>(PhantomData<T>);
+        impl<T: Copy + Ord> MapMonoid for $assign<T> {
+            type M = $monoid<T>;
+            type F = Option<T>;
             fn identity_map() -> Self::F { None }
-            fn mapping(f: &Self::F, x: &Option<i64>) -> Option<i64> { x.map(|x| f.unwrap_or(x)) }
+            fn mapping(f: &Self::F, x: &Option<T>) -> Option<T> { x.map(|x| f.unwrap_or(x)) }
             fn composition(f: &Self::F, g: &Self::F) -> Self::F { f.or(*g) }
         }
     };
@@ -184,14 +186,14 @@ extrema!(
     RangeAddMin,
     RangeAssignMin,
     min,
-    "Minimum monoid for i64."
+    "Minimum monoid for ordered values."
 );
 extrema!(
     MaxMonoid,
     RangeAddMax,
     RangeAssignMax,
     max,
-    "Maximum monoid for i64."
+    "Maximum monoid for ordered values."
 );
 
 #[cfg(test)]
@@ -324,6 +326,57 @@ mod tests {
                 len: 3
             }
         );
+    }
+
+    #[test]
+    fn generic_extrema_match_vec_and_obey_action_laws() {
+        let add = |step: usize| {
+            let b = step as i128 % 5 - 2;
+            (b, 1, b as i64)
+        };
+        let assign = |step: usize| {
+            let b = step as i128 % 5 - 2;
+            if step % 3 == 0 {
+                (None, 1, 0)
+            } else {
+                (Some(b), 0, b as i64)
+            }
+        };
+        check::<RangeAddMin<i128>>(|x| Some(i128::from(x)), add);
+        check::<RangeAddMax<i128>>(|x| Some(i128::from(x)), add);
+        check::<RangeAssignMin<i128>>(|x| Some(i128::from(x)), assign);
+        check::<RangeAssignMax<i128>>(|x| Some(i128::from(x)), assign);
+
+        let large = i128::from(i64::MAX) + 100;
+        let mut tree = LazySegtree::<RangeAddMax<i128>>::from(vec![Some(large); 3]);
+        tree.apply_range(.., 10);
+        assert_eq!(tree.all_prod(), Some(large + 10));
+    }
+
+    #[test]
+    fn unsigned_extrema_and_assignment_without_arithmetic_bounds() {
+        let mut min = LazySegtree::<RangeAddMin<usize>>::from(vec![Some(4), Some(1), Some(7)]);
+        let mut max = LazySegtree::<RangeAddMax<usize>>::from(vec![Some(4), Some(1), Some(7)]);
+        min.apply_range(1..3, 5);
+        max.apply_range(1..3, 5);
+        assert_eq!(min.all_prod(), Some(4));
+        assert_eq!(max.all_prod(), Some(12));
+        assert_eq!(min.prod(0..0), None);
+        assert_eq!(RangeAddMin::<usize>::mapping(&5, &None), None);
+        assert_eq!(RangeAddMax::<usize>::identity_map(), 0);
+        let mut min = LazySegtree::<RangeAssignMin<usize>>::from(vec![Some(usize::MAX); 3]);
+        let mut max = LazySegtree::<RangeAssignMax<usize>>::from(vec![Some(0); 3]);
+        min.apply_range(.., Some(0));
+        max.apply_range(.., Some(usize::MAX));
+        assert_eq!(min.all_prod(), Some(0));
+        assert_eq!(max.all_prod(), Some(usize::MAX));
+
+        #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+        struct Rank(u8);
+        let mut ranks =
+            LazySegtree::<RangeAssignMin<Rank>>::from(vec![Some(Rank(2)), Some(Rank(4))]);
+        ranks.apply_range(.., Some(Rank(3)));
+        assert_eq!(ranks.all_prod(), Some(Rank(3)));
     }
 
     #[test]

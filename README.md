@@ -6,7 +6,7 @@
 
 - Rust edition: 2024
 - Rust version: 1.89.0
-- 依存クレート: `ac-library-rs = "0.2.0"`（遅延セグメント木用 MapMonoid）
+- 依存クレート: `ac-library-rs = "0.2.0"`（セグメント木・遅延セグメント木用 MapMonoid）
 
 ## 使い方
 
@@ -27,14 +27,28 @@ cargo test
 
 | モジュール | 内容 |
 | --- | --- |
-| `algorithm` | LIS |
-| `data_structure` | 遅延セグメント木用 MapMonoid、IntervalSet、Binary Trie（u64・任意長）、Trie 木、implicit treap、遅延伝搬・反転可能 RBST、重み付き Union-Find |
+| `algorithm` | LIS、転倒数 |
+| `data_structure` | 01配列の区間転倒数、遅延セグメント木用 MapMonoid、IntervalSet、Binary Trie（u64・任意長）、Trie 木、implicit treap、遅延伝搬・反転可能 RBST、重み付き Union-Find |
 | `graph` | ダイクストラ法、Functional Graph、根付き木の親・走査順序 |
 | `grid` | 4 近傍・8 近傍 |
 | `math` | 基数変換、組み合わせ、gcd/lcm、素数列挙、素因数分解 |
 | `utils` | Yes/No 出力補助 |
 
 ## Algorithm
+
+### inversion_count
+
+`i < j` かつ `a[i] > a[j]` を満たす組の数を `usize` で返します。同じ値同士は数えません。負数・重複・各整数型の最大値と最小値を扱えます。
+
+```rust
+use cp_library::algorithm::inversion_count;
+
+assert_eq!(inversion_count(&[3, -1, 2, -1]), 4);
+```
+
+- 引数: `&[T]`（`T: Ord`）。元の配列を変更せず、値の clone も不要です。
+- 空配列の転倒数は 0 です。転倒数が `usize::MAX` を超える場合は panic します。
+- 座標圧縮と Fenwick Tree により時間 `O(n log n)`、追加空間 `O(n)`（比較を定数時間とする）。
 
 ### LIS
 
@@ -52,6 +66,33 @@ assert_eq!(lis(&a), 4);
 
 ## Data Structure
 
+### BinaryInversion
+
+01配列の1点代入と、任意の半開区間 `[l, r)` 内の転倒数取得に対応します。区間内で 1 が 0 より前にある組の数を `usize` で返します。
+
+```rust
+use cp_library::data_structure::binary_inversion::BinaryInversion;
+
+let mut tree = BinaryInversion::new(&[1, 0, 1, 0]);
+assert_eq!(tree.query(0, 4), 3);
+assert_eq!(tree.query(1, 4), 1);
+tree.set(1, 1);
+assert_eq!(tree.query(0, 3), 0);
+assert_eq!(tree.all_inversions(), 3);
+```
+
+| API | 説明 |
+| --- | --- |
+| `new<T: Copy + TryInto<u8>>(values: &[T])` | 0 と 1 の配列から構築。空配列も可 |
+| `set(index, value)` | 指定位置を 0 または 1 に代入 |
+| `query(l, r)` | `[l, r)` 内の転倒数。空区間は 0 |
+| `all_inversions()` | 配列全体の転倒数 |
+| `len()` / `is_empty()` | 配列長 / 空判定 |
+
+入力は `u8` 固定ではなく、`usize`・`i64` などの整数型を使用できます。`set` も `T: TryInto<u8>` の値を受け取ります。空配列は `BinaryInversion::new::<usize>(&[])` のように型を指定してください。構築・更新時に転倒数が `usize::MAX` を超える場合は panic します。更新中に桁あふれした場合、その構造体は以後使用しないでください。
+
+0・1 以外の値、範囲外の添字、`l <= r <= len()` を満たさない区間は panic します。内部では各区間の 0 の個数・1 の個数・転倒数を保持するセグメント木を使い、左右の結合時に「左の 1 の個数 × 右の 0 の個数」を加算します。構築は時間・空間 `O(n)`、更新・区間取得は `O(log n)`、全体の転倒数・配列長・空判定は `O(1)` です。
+
 ### 遅延セグメント木用 MapMonoid
 
 `data_structure::lazy_segtree_map_monoid` は [ac-library-rs の MapMonoid](https://docs.rs/ac-library-rs/0.2.0/ac_library/lazysegtree/trait.MapMonoid.html) を実装する型を提供します。利用側でも `ac-library-rs = "0.2.0"` を依存に追加してください。
@@ -61,10 +102,10 @@ assert_eq!(lis(&a), 4);
 | `RangeAddSum<T = i64>` | 区間加算 / 和 | `T` | `SumLen<T>` |
 | `RangeAssignSum<T = i64>` | 区間代入 / 和 | `Option<T>` | `SumLen<T>` |
 | `RangeAffineSum<T = i64>` | `x → a*x+b` / 和 | `(T, T)` | `SumLen<T>` |
-| `RangeAddMin` | 区間加算 / 最小値 | `i64` | `Option<i64>` |
-| `RangeAddMax` | 区間加算 / 最大値 | `i64` | `Option<i64>` |
-| `RangeAssignMin` | 区間代入 / 最小値 | `Option<i64>` | `Option<i64>` |
-| `RangeAssignMax` | 区間代入 / 最大値 | `Option<i64>` | `Option<i64>` |
+| `RangeAddMin<T = i64>` | 区間加算 / 最小値 | `T` | `Option<T>` |
+| `RangeAddMax<T = i64>` | 区間加算 / 最大値 | `T` | `Option<T>` |
+| `RangeAssignMin<T = i64>` | 区間代入 / 最小値 | `Option<T>` | `Option<T>` |
+| `RangeAssignMax<T = i64>` | 区間代入 / 最大値 | `Option<T>` | `Option<T>` |
 
 ```rust
 use ac_library::{LazySegtree, ModInt998244353 as Mint};
@@ -81,6 +122,10 @@ let mut mins = LazySegtree::<RangeAssignMin>::from(vec![Some(3), Some(7)]);
 mins.apply_range(.., Some(0));
 assert_eq!(mins.all_prod(), Some(0));
 
+let mut unsigned_mins = LazySegtree::<RangeAssignMin<usize>>::from(vec![Some(3), Some(7)]);
+unsigned_mins.apply_range(.., Some(2));
+assert_eq!(unsigned_mins.all_prod(), Some(2));
+
 let mut affine = LazySegtree::<RangeAffineSum<Mint>>::from(
     vec![SumLen::new(Mint::new(2)); 3],
 );
@@ -89,6 +134,7 @@ assert_eq!(affine.all_prod().sum.val(), 21);
 ```
 
 - `SumLen::new(value)` は和が `value`、長さが 1 の葉を作ります。集約結果は公開フィールド `sum` / `len` から取得できます。空区間の単位元は和 0・長さ 0 です。
+- 最小値・最大値も型引数 `T`（既定値 `i64`）を指定でき、`i128`・`usize` などが使えます。代入は `T: Copy + Ord`、加算はさらに `Default + Add<Output = T>` が必要です。加算では `T::default()` が 0 で、加算が大小関係を保つ必要があります。整数の桁あふれを起こさない範囲で使ってください。
 - 最小値・最大値の葉は `Some(value)`、空区間は `None` です。空区間に作用しても `None` を保ちます。
 - 代入作用の `None` は何もしない操作です。0 を代入するときは `Some(0)` を使います。
 - **`LazySegtree::new(n)` は空区間の単位元で初期化されます。** 値 0 の配列を作る場合も `vec![SumLen::new(0); n]` や `vec![Some(0); n]` から構築してください。

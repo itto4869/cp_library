@@ -1,4 +1,5 @@
 pub mod arbitrary_binary_trie;
+pub mod binary_inversion;
 pub mod binary_trie;
 pub mod implicit_treap;
 pub mod intervalset;
