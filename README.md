@@ -72,17 +72,18 @@ assert_eq!(lis(&a), 4);
 
 ### prefix_sum
 
-`Vec<T>` を受け取り、先頭に 0 を置いた累積和を通常の `Vec<T>` で返します。
+`&[T]` を受け取り、先頭に 0 を置いた累積和を通常の `Vec<T>` で返します。
 
 ```rust
 use cp_library::data_structure::prefix_sum::prefix_sum;
 
-let sums = prefix_sum(vec![2i64, -1, 4, 3]);
+let values = vec![2i64, -1, 4, 3];
+let sums = prefix_sum(&values);
 assert_eq!(sums, vec![0, 2, 1, 5, 8]);
 assert_eq!(sums[3] - sums[1], 3); // 半開区間 [1, 3) の和
 ```
 
-- `prefix_sum(values: Vec<T>) -> Vec<T>`: 入力を消費します。入力の長さが `n` の場合、戻り値の長さは `n + 1` です。
+- `prefix_sum(values: &[T]) -> Vec<T>`: 入力を借用し、消費・変更しません。`Vec`・配列・部分スライスを参照で渡せます。入力の長さが `n` の場合、戻り値の長さは `n + 1` です。
 - `sums[i]` は先頭 `i` 要素の和。空配列に対しては `[0]` を返します。
 - `[l, r)` の和は `sums[r] - sums[l]` で取得します（`0 <= l <= r <= n`）。
 - `T: Copy + Default + Add<Output = T>` で、`Default` が 0 を表す型を使います。`usize`・`i64`・`i128`・ACL の modint などに対応します。
