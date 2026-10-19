@@ -32,7 +32,7 @@ cargo test
 | モジュール | 内容 |
 | --- | --- |
 | `algorithm` | LIS、転倒数 |
-| `data_structure` | 01配列の区間転倒数、遅延セグメント木用 MapMonoid、IntervalSet、Binary Trie（u64・任意長）、Trie 木、implicit treap、遅延伝搬・反転可能 RBST、重み付き Union-Find |
+| `data_structure` | 累積和、01配列の区間転倒数、遅延セグメント木用 MapMonoid、IntervalSet、Binary Trie（u64・任意長）、Trie 木、implicit treap、遅延伝搬・反転可能 RBST、重み付き Union-Find |
 | `graph` | ダイクストラ法、Functional Graph、根付き木の親・走査順序 |
 | `grid` | 4 近傍・8 近傍 |
 | `math` | 基数変換、組み合わせ、gcd/lcm、素数列挙、素因数分解 |
@@ -69,6 +69,25 @@ assert_eq!(lis(&a), 4);
 - 計算量: `O(n log n)`
 
 ## Data Structure
+
+### prefix_sum
+
+`Vec<T>` を受け取り、先頭に 0 を置いた累積和を通常の `Vec<T>` で返します。
+
+```rust
+use cp_library::data_structure::prefix_sum::prefix_sum;
+
+let sums = prefix_sum(vec![2i64, -1, 4, 3]);
+assert_eq!(sums, vec![0, 2, 1, 5, 8]);
+assert_eq!(sums[3] - sums[1], 3); // 半開区間 [1, 3) の和
+```
+
+- `prefix_sum(values: Vec<T>) -> Vec<T>`: 入力を消費します。入力の長さが `n` の場合、戻り値の長さは `n + 1` です。
+- `sums[i]` は先頭 `i` 要素の和。空配列に対しては `[0]` を返します。
+- `[l, r)` の和は `sums[r] - sums[l]` で取得します（`0 <= l <= r <= n`）。
+- `T: Copy + Default + Add<Output = T>` で、`Default` が 0 を表す型を使います。`usize`・`i64`・`i128`・ACL の modint などに対応します。
+- 整数では累積和・区間和が型の範囲内に収まるようにしてください。浮動小数点数では丸め誤差が生じます。
+- 前計算は時間・空間 `O(n)`、累積和の差による区間和取得は `O(1)`（数値演算を定数時間とする）。
 
 ### BinaryInversion
 
