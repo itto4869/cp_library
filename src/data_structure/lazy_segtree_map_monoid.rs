@@ -4,7 +4,9 @@
 //! `None` for the identity and `Some(value)` for assignment, including zero.
 //! Integer arithmetic must fit its type (including intermediate sums, products,
 //! and composed actions). Generic sum types must obey the usual semiring laws;
-//! use ACL modints for modular arithmetic. Lengths must fit `i64`.
+//! use ACL modints for modular arithmetic. `T::default()` must be zero.
+//! Lengths and the multiplicative identity 1 must be convertible from `usize`
+//! to `T` (modints reduce them modulo their modulus). Conversion failure panics.
 //!
 //! Build trees from leaves: `LazySegtree::new(n)` contains monoid identities,
 //! which represent empty segments, not n zero-valued elements.
@@ -48,11 +50,11 @@ impl<T> SumLen<T> {
 #[derive(Clone, Copy, Debug)]
 pub struct SumMonoid<T = i64>(PhantomData<T>);
 
-impl<T: Copy + From<i64> + Add<Output = T>> Monoid for SumMonoid<T> {
+impl<T: Copy + Default + Add<Output = T>> Monoid for SumMonoid<T> {
     type S = SumLen<T>;
     fn identity() -> Self::S {
         SumLen {
-            sum: T::from(0),
+            sum: T::default(),
             len: 0,
         }
     }
@@ -70,16 +72,19 @@ pub struct RangeAddSum<T = i64>(PhantomData<T>);
 
 impl<T> MapMonoid for RangeAddSum<T>
 where
-    T: Copy + From<i64> + Add<Output = T> + Mul<Output = T>,
+    T: Copy + Default + TryFrom<usize> + Add<Output = T> + Mul<Output = T>,
 {
     type M = SumMonoid<T>;
     type F = T;
     fn identity_map() -> T {
-        T::from(0)
+        T::default()
     }
     fn mapping(f: &T, x: &SumLen<T>) -> SumLen<T> {
         SumLen {
-            sum: x.sum + *f * T::from(i64::try_from(x.len).expect("length exceeds i64")),
+            sum: x.sum
+                + *f * T::try_from(x.len)
+                    .ok()
+                    .expect("length is not representable by the sum type"),
             len: x.len,
         }
     }
@@ -94,7 +99,7 @@ pub struct RangeAssignSum<T = i64>(PhantomData<T>);
 
 impl<T> MapMonoid for RangeAssignSum<T>
 where
-    T: Copy + From<i64> + Add<Output = T> + Mul<Output = T>,
+    T: Copy + Default + TryFrom<usize> + Add<Output = T> + Mul<Output = T>,
 {
     type M = SumMonoid<T>;
     type F = Option<T>;
@@ -104,7 +109,10 @@ where
     fn mapping(f: &Self::F, x: &SumLen<T>) -> SumLen<T> {
         match f {
             Some(value) => SumLen {
-                sum: *value * T::from(i64::try_from(x.len).expect("length exceeds i64")),
+                sum: *value
+                    * T::try_from(x.len)
+                        .ok()
+                        .expect("length is not representable by the sum type"),
                 len: x.len,
             },
             None => *x,
@@ -122,16 +130,25 @@ pub struct RangeAffineSum<T = i64>(PhantomData<T>);
 
 impl<T> MapMonoid for RangeAffineSum<T>
 where
-    T: Copy + From<i64> + Add<Output = T> + Mul<Output = T>,
+    T: Copy + Default + TryFrom<usize> + Add<Output = T> + Mul<Output = T>,
 {
     type M = SumMonoid<T>;
     type F = (T, T);
     fn identity_map() -> Self::F {
-        (T::from(1), T::from(0))
+        (
+            T::try_from(1usize)
+                .ok()
+                .expect("one is not representable by the sum type"),
+            T::default(),
+        )
     }
     fn mapping(f: &Self::F, x: &SumLen<T>) -> SumLen<T> {
         SumLen {
-            sum: f.0 * x.sum + f.1 * T::from(i64::try_from(x.len).expect("length exceeds i64")),
+            sum: f.0 * x.sum
+                + f.1
+                    * T::try_from(x.len)
+                        .ok()
+                        .expect("length is not representable by the sum type"),
             len: x.len,
         }
     }
@@ -201,6 +218,32 @@ mod tests {
     use super::*;
     use ac_library::{LazySegtree, ModInt998244353 as Mint};
     use std::fmt::Debug;
+
+    #[test]
+    fn unsigned_and_narrow_sum_types() {
+        let mut add = LazySegtree::<RangeAddSum<usize>>::from(vec![SumLen::new(1); 3]);
+        add.apply_range(.., 2);
+        assert_eq!(add.all_prod().sum, 9);
+        let mut assign = LazySegtree::<RangeAssignSum<u32>>::from(vec![SumLen::new(2); 3]);
+        assign.apply_range(1.., Some(4));
+        assert_eq!(assign.all_prod().sum, 10);
+        let mut affine = LazySegtree::<RangeAffineSum<u8>>::from(vec![SumLen::new(2); 3]);
+        affine.apply_range(.., (3, 1));
+        assert_eq!(affine.all_prod().sum, 21);
+        let mut signed = LazySegtree::<RangeAddSum<i32>>::from(vec![SumLen::new(-2); 3]);
+        signed.apply_range(.., 1);
+        assert_eq!(signed.all_prod().sum, -3);
+        let mut small = LazySegtree::<RangeAffineSum<i8>>::from(vec![SumLen::new(2); 3]);
+        small.apply_range(.., (-1, 1));
+        assert_eq!(small.all_prod().sum, -3);
+        assert_eq!(SumMonoid::<usize>::identity(), SumLen { sum: 0, len: 0 });
+    }
+
+    #[test]
+    #[should_panic(expected = "length is not representable by the sum type")]
+    fn sum_length_conversion_is_checked() {
+        RangeAddSum::<u8>::mapping(&1, &SumLen { sum: 0, len: 256 });
+    }
 
     fn check<M: MapMonoid>(
         leaf: impl Fn(i64) -> <M::M as Monoid>::S,

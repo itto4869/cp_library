@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-/// A union of half-open intervals `[l, r)` with `i64` endpoints.
+/// A union of half-open intervals `[l, r)` with ordered endpoints `T` (default: `i64`).
 ///
 /// Intervals are nonempty, disjoint, and nonadjacent, stored in a `BTreeSet`.
 /// Insertion merges overlapping or adjacent intervals; removal may split them.
@@ -24,12 +24,20 @@ use std::collections::BTreeSet;
 /// assert!(set.contains(2));
 /// assert!(!set.contains(3));
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct IntervalSet {
-    intervals: BTreeSet<(i64, i64)>,
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct IntervalSet<T = i64> {
+    intervals: BTreeSet<(T, T)>,
 }
 
-impl IntervalSet {
+impl<T> Default for IntervalSet<T> {
+    fn default() -> Self {
+        Self {
+            intervals: BTreeSet::new(),
+        }
+    }
+}
+
+impl<T: Copy + Ord> IntervalSet<T> {
     pub fn new() -> Self {
         Self::default()
     }
@@ -48,43 +56,50 @@ impl IntervalSet {
     }
 
     /// Iterates over intervals in ascending order of their left endpoints.
-    pub fn iter(&self) -> impl DoubleEndedIterator<Item = (i64, i64)> + ExactSizeIterator + '_ {
+    pub fn iter(&self) -> impl DoubleEndedIterator<Item = (T, T)> + ExactSizeIterator + '_ {
         self.intervals.iter().copied()
     }
 
     /// Returns the interval containing `point`, or `None` when uncovered.
-    pub fn interval_containing(&self, point: i64) -> Option<(i64, i64)> {
-        self.intervals
-            .range(..=(point, i64::MAX))
-            .next_back()
-            .copied()
-            .filter(|&(_, r)| point < r)
+    pub fn interval_containing(&self, point: T) -> Option<(T, T)> {
+        self.predecessor(point).filter(|&(_, r)| point < r)
     }
 
-    pub fn contains(&self, point: i64) -> bool {
+    // Every stored interval has start < end, so (point, point) is a
+    // lower bound for intervals starting at point, without numeric sentinels.
+    fn predecessor(&self, point: T) -> Option<(T, T)> {
+        self.intervals
+            .range((point, point)..)
+            .next()
+            .filter(|&&(start, _)| start == point)
+            .or_else(|| self.intervals.range(..(point, point)).next_back())
+            .copied()
+    }
+
+    pub fn contains(&self, point: T) -> bool {
         self.interval_containing(point).is_some()
     }
 
     /// Returns whether all of `[l, r)` is covered. Empty intervals return true.
-    pub fn contains_range(&self, l: i64, r: i64) -> bool {
+    pub fn contains_range(&self, l: T, r: T) -> bool {
         assert!(l <= r, "interval endpoints must satisfy l <= r");
         l == r || self.interval_containing(l).is_some_and(|(_, end)| r <= end)
     }
 
     /// Adds `[l, r)`, merging overlapping and adjacent intervals.
-    pub fn insert(&mut self, mut l: i64, mut r: i64) {
+    pub fn insert(&mut self, mut l: T, mut r: T) {
         assert!(l <= r, "interval endpoints must satisfy l <= r");
         if l == r {
             return;
         }
-        if let Some((start, end)) = self.intervals.range(..=(l, i64::MAX)).next_back().copied() {
+        if let Some((start, end)) = self.predecessor(l) {
             if end >= l {
                 self.intervals.remove(&(start, end));
                 l = start;
                 r = r.max(end);
             }
         }
-        while let Some((start, end)) = self.intervals.range((l, i64::MIN)..).next().copied() {
+        while let Some((start, end)) = self.intervals.range((l, l)..).next().copied() {
             if start > r {
                 break;
             }
@@ -95,7 +110,7 @@ impl IntervalSet {
     }
 
     /// Removes `[l, r)`, retaining any portions outside the removed interval.
-    pub fn remove(&mut self, l: i64, r: i64) {
+    pub fn remove(&mut self, l: T, r: T) {
         assert!(l <= r, "interval endpoints must satisfy l <= r");
         if l == r {
             return;
@@ -110,7 +125,7 @@ impl IntervalSet {
                 return;
             }
         }
-        while let Some((start, end)) = self.intervals.range((l, i64::MIN)..).next().copied() {
+        while let Some((start, end)) = self.intervals.range((l, l)..).next().copied() {
             if start >= r {
                 break;
             }
@@ -126,6 +141,38 @@ impl IntervalSet {
 #[cfg(test)]
 mod tests {
     use super::IntervalSet;
+
+    #[test]
+    fn generic_endpoints_without_numeric_bounds() {
+        let mut unsigned = IntervalSet::<usize>::new();
+        unsigned.insert(0, 10);
+        unsigned.insert(10, usize::MAX);
+        unsigned.remove(5, 12);
+        assert_eq!(
+            unsigned.iter().collect::<Vec<_>>(),
+            vec![(0, 5), (12, usize::MAX)]
+        );
+        assert_eq!(unsigned.interval_containing(12), Some((12, usize::MAX)));
+        let mut wide = IntervalSet::<i128>::new();
+        wide.insert(i128::MIN, i128::MAX);
+        wide.remove(-1, 1);
+        assert!(wide.contains(i128::MIN));
+        assert!(!wide.contains(0));
+        wide.insert(-1, 1);
+        assert_eq!(wide.len(), 1);
+
+        // No Default, MIN/MAX, or arithmetic operations are needed.
+        #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+        struct Endpoint(u8);
+        let mut set = IntervalSet::<Endpoint>::default();
+        set.insert(Endpoint(1), Endpoint(9));
+        set.remove(Endpoint(3), Endpoint(6));
+        assert_eq!(
+            set.iter().collect::<Vec<_>>(),
+            vec![(Endpoint(1), Endpoint(3)), (Endpoint(6), Endpoint(9))]
+        );
+        assert!(set.contains_range(Endpoint(6), Endpoint(9)));
+    }
 
     #[test]
     fn merges_splits_and_queries() {

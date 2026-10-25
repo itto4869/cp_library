@@ -31,7 +31,7 @@ cargo test
 
 | モジュール | 内容 |
 | --- | --- |
-| `algorithm` | LIS、転倒数 |
+| `algorithm` | LIS、転倒数、偏角ソート |
 | `data_structure` | 累積和、01配列の区間転倒数、遅延セグメント木用 MapMonoid、IntervalSet、Binary Trie（u64・任意長）、Trie 木、implicit treap、遅延伝搬・反転可能 RBST、重み付き Union-Find |
 | `graph` | ダイクストラ法、Functional Graph、根付き木の親・走査順序 |
 | `grid` | 4 近傍・8 近傍 |
@@ -39,6 +39,23 @@ cargo test
 | `utils` | Yes/No 出力補助 |
 
 ## Algorithm
+
+### polar_angle_sort
+
+整数座標の点 `(x, y)` を、正の x 軸から反時計回りの偏角順 `[0, 2π)` に並べた `Vec` を返します。
+
+```rust
+use cp_library::algorithm::polar_angle_sort;
+
+let points = vec![(0, -1), (-1, 0), (0, 1), (1, 0)];
+assert_eq!(polar_angle_sort(&points), vec![(1, 0), (0, 1), (-1, 0), (0, -1)]);
+```
+
+- 引数は `&[(T, T)]`（`T: Copy + TryInto<i128>`）。入力を変更・消費しません。空入力も扱えます。
+- 原点 `(0, 0)` は先頭に置きます。同じ方向の点は距離によらず入力順を保ち、重複も残します。
+- 浮動小数点を使わず、半平面と外積の積の項を比較します。`i64` 全域に対応し、`i32`・`usize`・`i128` なども使えます。
+- 座標の `i128` への変換、または比較時の積が `i128` に収まらない場合は panic します。
+- 時間 `O(n log n)`、結果を含む追加空間 `O(n)`。
 
 ### inversion_count
 
@@ -163,12 +180,12 @@ assert_eq!(affine.all_prod().sum.val(), 21);
 - 代入作用の `None` は何もしない操作です。0 を代入するときは `Some(0)` を使います。
 - **`LazySegtree::new(n)` は空区間の単位元で初期化されます。** 値 0 の配列を作る場合も `vec![SumLen::new(0); n]` や `vec![Some(0); n]` から構築してください。
 - `composition(f, g)` は `g` の後に `f` を適用します。アフィン作用では `(a_f*a_g, a_f*b_g+b_f)` です。
-- 和の型 `T` は `Copy + From<i64> + Add<Output = T> + Mul<Output = T>` を満たす半環を想定します。`i64`、`i128`、ACL の modint を使用できます。整数の和・積・作用の合成は中間値も型の範囲内、要素数は `i64` の範囲内で使用してください。
+- 和の型 `T` は `Copy + Default + TryFrom<usize> + Add<Output = T> + Mul<Output = T>` を満たす半環を想定します。`Default` は 0、`usize` から変換した 1 は乗法単位元を表す必要があります。`usize`・`u32`・`i32`・`i64`・`i128`・ACL の modint などに対応します。整数の和・積・作用の合成は中間値も型の範囲内で使用してください。要素数の `usize` から `T` への変換に失敗すると panic します（modint は法で剰余を取ります）。
 - 各 MapMonoid 演算は `O(1)`（`T` の演算を定数時間とする）。セグメント木の区間更新・区間取得は `O(log n)` です。
 
 ### IntervalSet
 
-`intervalset` モジュールの `IntervalSet` は、`i64` を端点とする半開区間 `[l, r)` の集合を `BTreeSet` で管理します。重なる区間や隣接する区間は自動で結合します。
+`intervalset` モジュールの `IntervalSet<T = i64>` は、`T: Copy + Ord` を端点とする半開区間 `[l, r)` の集合を `BTreeSet` で管理します。`IntervalSet::<usize>::new()` や `IntervalSet::<i128>::new()` のように型を指定できます。重なる区間や隣接する区間は自動で結合します。
 
 ```rust
 use cp_library::data_structure::intervalset::IntervalSet;
@@ -190,12 +207,12 @@ assert!(!set.contains(3));
 | `remove(l, r)` | `[l, r)` を削除し、必要なら区間を分割 |
 | `contains(point)` | 点がいずれかの区間に含まれるか判定 |
 | `contains_range(l, r)` | `[l, r)` 全体が覆われているか判定。空区間は `true` |
-| `interval_containing(point)` | 点を含む区間を `Option<(i64, i64)>` で返す |
+| `interval_containing(point)` | 点を含む区間を `Option<(T, T)>` で返す |
 | `iter()` | 左端の昇順で `(l, r)` を列挙 |
 | `len()` / `is_empty()` | 保持する区間数 / 空判定 |
 | `clear()` | 全区間を削除 |
 
-空区間の追加・削除は何も変更せず、`l > r` は panic します。端点に `i64::MIN` / `i64::MAX` も使えますが、右端を含まないため `i64::MAX` 自体を覆うことはできません。重複追加は登録数を増やさず、削除は指定範囲を集合から取り除きます。
+空区間の追加・削除は何も変更せず、`l > r` は panic します。端点に数値型の最小値・最大値も使えますが、右端を含まないためその型の最大値自体を覆うことはできません。端点の加減算や番兵値は使わず、独自の順序型も使用できます。重複追加は登録数を増やさず、削除は指定範囲を集合から取り除きます。
 
 区間数を `n`、操作で影響する区間数を `k` として、追加・削除は `O((k + 1) log(n + 1))`、包含判定は `O(log(n + 1))`、区間数・空判定は `O(1)`、全区間の列挙は `O(n)` です。保持空間は `O(n)` です。
 
@@ -526,7 +543,7 @@ assert_eq!(graph.next(0), 1);
 
 ### dijkstra
 
-`Vec<Vec<(usize, usize)>>` の隣接リストと始点を受け取り、各頂点への最短距離を `Vec<usize>` で返します。各要素は `(行き先の頂点, コスト)` です。
+`Vec<Vec<(usize, T)>>` の隣接リストと始点を受け取り、各頂点への最短距離を `Vec<T>` で返します。各要素は `(行き先の頂点, コスト)` です。
 
 ```rust
 use cp_library::graph::dijkstra;
@@ -535,10 +552,11 @@ let graph = vec![vec![(1, 4), (2, 1)], vec![], vec![(1, 2)], vec![]];
 assert_eq!(dijkstra(&graph, 0), vec![0, 3, 1, usize::MAX]);
 ```
 
-- 引数: `graph: &[Vec<(usize, usize)>]`, `start: usize`（Vec は `&graph` で渡せます）
+- 引数: `graph: &[Vec<(usize, T)>]`, `start: usize`（Vec は `&graph` で渡せます）。`T: DijkstraCost` で、すべての符号付き・符号なしプリミティブ整数型に対応します。コストは非負である必要があります。
+- 空の辺リストなど型を推論できない場合は `dijkstra::<usize>(&graph, root)` と指定してください。型の指定がない整数リテラルは Rust の通常の推論に従うため、`usize` の距離が必要な場合は入力や型引数に明記してください。
 - 頂点番号は 0 始まり、コストは非負整数です。無向グラフでは両方向の辺を登録してください。
-- 到達不能、または距離が `usize::MAX` 以上の場合は `usize::MAX` を返します。加算は飽和演算です。
-- 始点や辺の行き先が範囲外の場合は panic します。空グラフも始点が存在しないため panic します。
+- 到達不能、または距離が `T::MAX` 以上の場合は `T::MAX` を返します。加算は飽和演算です。
+- 始点や辺の行き先が範囲外、またはコストが負の場合は panic します。空グラフも始点が存在しないため panic します。
 - 計算量: 時間 `O(V + E log(E + 1))`、追加空間 `O(V + E)`
 
 ## Grid
@@ -581,7 +599,7 @@ assert_eq!(convert_base(-10, 10, 2).unwrap(), "-1010");
 
 ### Combination
 
-階乗と逆階乗を前計算して、素数 mod 上の `nCr`、`nPr`、`nHr` を計算します。
+`Combination<T = u64>` は階乗と逆階乗を前計算して、素数 mod 上の `nCr`、`nPr`、`nHr` を型 `T` で返します。`T: Copy + TryInto<u128> + TryFrom<u128>` で、`u32`・`usize`・`i64`・`u128` などの整数型に対応します。
 
 ```rust
 use cp_library::math::combinations::Combination;
@@ -597,12 +615,14 @@ assert_eq!(comb.fact(5), 120);
 
 - パス: `cp_library::math::combinations::Combination`
 - `modulo` は Fermat の小定理で逆元を計算するため、素数を指定してください。
-- `new(max_n, modulo)` で `0..=max_n` まで前計算します。
+- `new(max_n, modulo)` で `0..=max_n` まで前計算します。`modulo >= 2` かつ `max_n < modulo` が必要です。負の法やこの条件を満たさない入力は panic します。素数判定は行いません。
+- 例: `Combination::<usize>::new(100, 1_000_000_007)`。法と戻り値は同じ型です。内部では `u128` を使い、積が収まらない場合は繰り返し加算によって桁あふれを避けます。
 
 計算量:
 
-- 前計算: `O(max_n log modulo)`
-- 各クエリ: `O(1)`
+- 前計算: `O(max_n + log modulo)` 回の剰余乗算、空間 `O(max_n)`。
+- 各クエリ: `O(1)` 回の剰余乗算。
+- 剰余乗算は積が `u128` に収まる場合 `O(1)`、収まらない場合 `O(log modulo)`。
 
 ### gcd / lcm
 
