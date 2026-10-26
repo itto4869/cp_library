@@ -33,7 +33,7 @@ cargo test
 | --- | --- |
 | `algorithm` | LIS、転倒数、偏角ソート |
 | `data_structure` | 累積和、01配列の区間転倒数、遅延セグメント木用 MapMonoid、IntervalSet、Binary Trie（u64・任意長）、Trie 木、implicit treap、遅延伝搬・反転可能 RBST、重み付き Union-Find |
-| `graph` | ダイクストラ法、Functional Graph、根付き木の親・走査順序 |
+| `graph` | ダイクストラ法、トポロジカルソート、Functional Graph、根付き木の親・走査順序 |
 | `grid` | 4 近傍・8 近傍 |
 | `math` | 基数変換、組み合わせ、gcd/lcm、素数列挙、素因数分解 |
 | `utils` | Yes/No 出力補助 |
@@ -501,6 +501,24 @@ assert_eq!(dsu.diff(0, 3), None);
 型 `T` は `Copy + Default + Add + Sub + Neg` を満たす必要があります。
 
 ## Graph
+
+### topological_sort
+
+有向グラフの隣接リストを参照で受け取り、各辺の始点が終点より前に現れる頂点順序を返します。
+
+```rust
+use cp_library::graph::topological_sort;
+
+let graph = vec![vec![1, 2], vec![3], vec![3], vec![]];
+assert_eq!(topological_sort(&graph), Some(vec![0, 1, 2, 3]));
+assert_eq!(topological_sort(&[vec![1], vec![0]]), None);
+```
+
+- 引数: `graph: &[Vec<usize>]`。`graph[v]` に頂点 `v` からの行き先を登録します。頂点番号は 0 始まりです。
+- 戻り値: `Option<Vec<usize>>`。DAG なら全頂点を 1 回ずつ含む順序、閉路があれば `None`。空グラフは `Some(vec![])` です。
+- 非連結グラフ・多重辺にも対応します。自己ループは閉路として扱い、範囲外の行き先は panic します。
+- 最初の入次数 0 の頂点は番号順にキューへ追加し、その後は隣接リストの順に処理します。同じ入力では同じ結果になりますが、辞書順最小は保証しません。
+- Kahn 法による時間 `O(V + E)`、追加空間 `O(V)`。再帰を使わず、入力を変更しません。
 
 ### rooted_tree
 
