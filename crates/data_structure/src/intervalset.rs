@@ -13,7 +13,7 @@ use std::collections::BTreeSet;
 ///
 /// # Examples
 /// ```
-/// use cp_library::data_structure::intervalset::IntervalSet;
+/// use cp_data_structure::intervalset::IntervalSet;
 ///
 /// let mut set = IntervalSet::new();
 /// set.insert(1, 4);

@@ -43,7 +43,7 @@ impl_cost!(
 ///
 /// # Examples
 /// ```
-/// use cp_library::graph::dijkstra;
+/// use cp_graph::dijkstra;
 ///
 /// let graph = vec![vec![(1, 4), (2, 1)], vec![], vec![(1, 2)], vec![]];
 /// assert_eq!(dijkstra(&graph, 0), vec![0, 3, 1, usize::MAX]);

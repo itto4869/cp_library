@@ -17,7 +17,7 @@
 ///
 /// # Examples
 /// ```
-/// use cp_library::graph::topological_sort;
+/// use cp_graph::topological_sort;
 ///
 /// let graph = vec![vec![1, 2], vec![3], vec![3], vec![]];
 /// assert_eq!(topological_sort(&graph), Some(vec![0, 1, 2, 3]));

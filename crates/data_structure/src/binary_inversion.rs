@@ -54,7 +54,7 @@ fn leaf<T: TryInto<u8>>(value: T) -> Counts {
 /// time; `len`, `is_empty`, and `all_inversions` take O(1).
 ///
 /// ```
-/// use cp_library::data_structure::binary_inversion::BinaryInversion;
+/// use cp_data_structure::binary_inversion::BinaryInversion;
 /// let mut tree = BinaryInversion::new(&[1, 0, 1, 0]);
 /// assert_eq!(tree.query(0, 4), 3);
 /// assert_eq!(tree.query(1, 4), 1);

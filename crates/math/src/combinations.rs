@@ -10,7 +10,7 @@
 /// its product fits `u128`, otherwise O(log(modulo)) using repeated doubling.
 ///
 /// ```
-/// use cp_library::math::combinations::Combination;
+/// use cp_math::combinations::Combination;
 /// let comb = Combination::<usize>::new(10, 1_000_000_007);
 /// assert_eq!(comb.n_c_r(5, 2), 10);
 /// ```

@@ -13,7 +13,7 @@
 //!
 //! ```
 //! use ac_library::{LazySegtree, ModInt998244353 as Mint};
-//! use cp_library::data_structure::lazy_segtree_map_monoid::{
+//! use cp_data_structure::lazy_segtree_map_monoid::{
 //!     RangeAddSum, RangeAffineSum, RangeAssignMin, SumLen,
 //! };
 //! let mut sums = LazySegtree::<RangeAddSum>::from(

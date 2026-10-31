@@ -14,7 +14,7 @@
 /// # Examples
 ///
 /// ```
-/// use cp_library::math::prime_factorization::prime_factorize;
+/// use cp_math::prime_factorization::prime_factorize;
 ///
 /// assert_eq!(prime_factorize(360), vec![(2, 3), (3, 2), (5, 1)]);
 /// assert!(prime_factorize(1).is_empty());

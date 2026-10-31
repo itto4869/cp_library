@@ -15,7 +15,7 @@
 ///
 /// # Examples
 /// ```
-/// use cp_library::graph::rooted_tree;
+/// use cp_graph::rooted_tree;
 ///
 /// let tree = vec![vec![1, 2], vec![0, 3], vec![0], vec![1]];
 /// let (parent, order) = rooted_tree(&tree, 0);

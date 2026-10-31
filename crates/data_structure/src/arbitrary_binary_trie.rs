@@ -18,7 +18,7 @@ struct Node {
 ///
 /// # Examples
 /// ```
-/// use cp_library::data_structure::arbitrary_binary_trie::ArbitraryBinaryTrie;
+/// use cp_data_structure::arbitrary_binary_trie::ArbitraryBinaryTrie;
 ///
 /// let mut trie = ArbitraryBinaryTrie::new();
 /// let mut large = vec![false; 201];

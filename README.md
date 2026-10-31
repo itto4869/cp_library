@@ -10,33 +10,56 @@
 
 - Rust edition: 2024
 - Rust version: 1.89.0
-- 依存クレート: `ac-library-rs = "0.2.0"`（セグメント木・遅延セグメント木用 MapMonoid）
+- 外部依存: `cp_data_structure` のみ `ac-library-rs = "0.2.0"`（セグメント木・遅延セグメント木用 MapMonoid）
 
 ## 使い方
 
-別プロジェクトからローカル依存として使う場合:
+ジャンルごとに独立したクレートを持つ Cargo workspace です。提出用コードへまとめる際に依存ジャンルを選べるよう、使うクレートだけを追加してください。ルートは workspace 管理専用で、`cp_library` という単一クレートは提供しません。
+
+別プロジェクトからローカル依存として使う場合（グラフと整数アルゴリズムの例）:
 
 ```toml
 [dependencies]
-cp_library = { path = "../cp_library" }
+cp_graph = { path = "../cp_library/crates/graph" }
+cp_algorithm = { path = "../cp_library/crates/algorithm" }
 ```
 
-このリポジトリ内でテストする場合:
+```rust
+use cp_graph::topological_sort;
+use cp_algorithm::inversion_count;
+
+assert_eq!(topological_sort(&[vec![1], vec![]]), Some(vec![0, 1]));
+assert_eq!(inversion_count(&[3, 1, 2]), 2);
+```
+
+従来の `cp_library::graph::...` は `cp_graph::...`、`cp_library::data_structure::...` は `cp_data_structure::...` のように置き換えます。`cp_library::lis` は `cp_algorithm::lis`、出力マクロは `cp_utils::yes_no!` / `cp_utils::yes_no_custom!` です。
+
+クレート間の依存はありません。`ac-library-rs` に依存するのは `cp_data_structure` だけです。分割単位はジャンルであり、同じジャンル内の未使用コードの除去は利用する提出用結合ツールの仕様に依存します。
+
+全クレートのテスト:
 
 ```sh
-cargo test
+cargo test --workspace
 ```
 
-## モジュール一覧
+特定のクレートだけをテストする場合:
 
-| モジュール | 内容 |
-| --- | --- |
-| `algorithm` | LIS、転倒数、偏角ソート |
-| `data_structure` | 累積和、01配列の区間転倒数、遅延セグメント木用 MapMonoid、IntervalSet、Binary Trie（u64・任意長）、Trie 木、implicit treap、遅延伝搬・反転可能 RBST、重み付き Union-Find |
-| `graph` | ダイクストラ法、トポロジカルソート、Functional Graph、根付き木の親・走査順序 |
-| `grid` | 4 近傍・8 近傍 |
-| `math` | 基数変換、組み合わせ、gcd/lcm、素数列挙、素因数分解 |
-| `utils` | Yes/No 出力補助 |
+```sh
+cargo test -p cp_graph
+```
+
+## クレート一覧
+
+| クレート | パス | 内容 |
+| --- | --- | --- |
+| `cp_algorithm` | `crates/algorithm` | LIS、転倒数、偏角ソート |
+| `cp_data_structure` | `crates/data_structure` | 累積和、01配列の区間転倒数、遅延セグメント木用 MapMonoid、IntervalSet、Trie 系、treap、RBST、重み付き Union-Find |
+| `cp_graph` | `crates/graph` | ダイクストラ法、トポロジカルソート、Functional Graph、根付き木の親・走査順序 |
+| `cp_grid` | `crates/grid` | 4 近傍・8 近傍 |
+| `cp_math` | `crates/math` | 基数変換、組み合わせ、gcd/lcm、素数列挙、素因数分解 |
+| `cp_utils` | `crates/utils` | Yes/No 出力補助 |
+
+各クレートの `src/lib.rs` から従来のジャンル内の API を公開します。バージョン・edition・最低 Rust バージョン・ライセンスはルートの `[workspace.package]` で共通管理しています。
 
 ## Algorithm
 
@@ -45,7 +68,7 @@ cargo test
 整数座標の点 `(x, y)` を、正の x 軸から反時計回りの偏角順 `[0, 2π)` に並べた `Vec` を返します。
 
 ```rust
-use cp_library::algorithm::polar_angle_sort;
+use cp_algorithm::polar_angle_sort;
 
 let points = vec![(0, -1), (-1, 0), (0, 1), (1, 0)];
 assert_eq!(polar_angle_sort(&points), vec![(1, 0), (0, 1), (-1, 0), (0, -1)]);
@@ -62,7 +85,7 @@ assert_eq!(polar_angle_sort(&points), vec![(1, 0), (0, 1), (-1, 0), (0, -1)]);
 `i < j` かつ `a[i] > a[j]` を満たす組の数を `usize` で返します。同じ値同士は数えません。負数・重複・各整数型の最大値と最小値を扱えます。
 
 ```rust
-use cp_library::algorithm::inversion_count;
+use cp_algorithm::inversion_count;
 
 assert_eq!(inversion_count(&[3, -1, 2, -1]), 4);
 ```
@@ -76,13 +99,13 @@ assert_eq!(inversion_count(&[3, -1, 2, -1]), 4);
 `lis` は狭義単調増加部分列の最大長を返します。
 
 ```rust
-use cp_library::lis;
+use cp_algorithm::lis;
 
 let a = vec![1, 3, 5, 2, 4, 6];
 assert_eq!(lis(&a), 4);
 ```
 
-- パス: `cp_library::lis` または `cp_library::algorithm::lis`
+- パス: `cp_algorithm::lis`
 - 計算量: `O(n log n)`
 
 ## Data Structure
@@ -92,7 +115,7 @@ assert_eq!(lis(&a), 4);
 `&[T]` を受け取り、先頭に 0 を置いた累積和を通常の `Vec<T>` で返します。
 
 ```rust
-use cp_library::data_structure::prefix_sum::prefix_sum;
+use cp_data_structure::prefix_sum::prefix_sum;
 
 let values = vec![2i64, -1, 4, 3];
 let sums = prefix_sum(&values);
@@ -112,7 +135,7 @@ assert_eq!(sums[3] - sums[1], 3); // 半開区間 [1, 3) の和
 01配列の1点代入と、任意の半開区間 `[l, r)` 内の転倒数取得に対応します。区間内で 1 が 0 より前にある組の数を `usize` で返します。
 
 ```rust
-use cp_library::data_structure::binary_inversion::BinaryInversion;
+use cp_data_structure::binary_inversion::BinaryInversion;
 
 let mut tree = BinaryInversion::new(&[1, 0, 1, 0]);
 assert_eq!(tree.query(0, 4), 3);
@@ -136,7 +159,7 @@ assert_eq!(tree.all_inversions(), 3);
 
 ### 遅延セグメント木用 MapMonoid
 
-`data_structure::lazy_segtree_map_monoid` は [ac-library-rs の MapMonoid](https://docs.rs/ac-library-rs/0.2.0/ac_library/lazysegtree/trait.MapMonoid.html) を実装する型を提供します。利用側でも `ac-library-rs = "0.2.0"` を依存に追加してください。
+`cp_data_structure::lazy_segtree_map_monoid` は [ac-library-rs の MapMonoid](https://docs.rs/ac-library-rs/0.2.0/ac_library/lazysegtree/trait.MapMonoid.html) を実装する型を提供します。利用側でも `ac-library-rs = "0.2.0"` を依存に追加してください。
 
 | 型 | 更新 / 取得 | 作用 `F` | 集約値 `S` |
 | --- | --- | --- | --- |
@@ -150,7 +173,7 @@ assert_eq!(tree.all_inversions(), 3);
 
 ```rust
 use ac_library::{LazySegtree, ModInt998244353 as Mint};
-use cp_library::data_structure::lazy_segtree_map_monoid::{
+use cp_data_structure::lazy_segtree_map_monoid::{
     RangeAddSum, RangeAssignMin, RangeAffineSum, SumLen,
 };
 
@@ -188,7 +211,7 @@ assert_eq!(affine.all_prod().sum.val(), 21);
 `intervalset` モジュールの `IntervalSet<T = i64>` は、`T: Copy + Ord` を端点とする半開区間 `[l, r)` の集合を `BTreeSet` で管理します。`IntervalSet::<usize>::new()` や `IntervalSet::<i128>::new()` のように型を指定できます。重なる区間や隣接する区間は自動で結合します。
 
 ```rust
-use cp_library::data_structure::intervalset::IntervalSet;
+use cp_data_structure::intervalset::IntervalSet;
 
 let mut set = IntervalSet::new();
 set.insert(1, 4);
@@ -221,7 +244,7 @@ assert!(!set.contains(3));
 `u64` 全域を扱う 64 ビットの Binary Trie です。重複を含む整数の集合を管理します。
 
 ```rust
-use cp_library::data_structure::binary_trie::BinaryTrie;
+use cp_data_structure::binary_trie::BinaryTrie;
 
 let mut trie = BinaryTrie::new();
 trie.insert(5);
@@ -254,7 +277,7 @@ assert_eq!(trie.count(5), 1);
 64 ビットを超える非負整数を扱う任意長の Binary Trie です。上位ビットから並べた `&[bool]` を渡します。ビット幅は挿入時に自動で拡張され、異なる長さの値を混在できます。外部クレートは不要です。
 
 ```rust
-use cp_library::data_structure::arbitrary_binary_trie::ArbitraryBinaryTrie;
+use cp_data_structure::arbitrary_binary_trie::ArbitraryBinaryTrie;
 
 let mut trie = ArbitraryBinaryTrie::new();
 let mut large = vec![false; 201];
@@ -284,7 +307,7 @@ assert!(trie.remove(&large));
 Unicode の `char` 単位で文字列を管理する Trie 木です。重複登録と空文字列に対応し、Unicode の正規化は行いません。
 
 ```rust
-use cp_library::data_structure::trie::Trie;
+use cp_data_structure::trie::Trie;
 
 let mut trie = Trie::new();
 trie.insert("app");
@@ -322,7 +345,7 @@ assert_eq!(trie.count("app"), 1);
 添字で操作する列を treap で管理します。半開区間 `[l, r)` の遅延反転に対応しています。
 
 ```rust
-use cp_library::data_structure::implicit_treap::ImplicitTreap;
+use cp_data_structure::implicit_treap::ImplicitTreap;
 
 let mut treap: ImplicitTreap<_> = (0..5).collect();
 
@@ -373,7 +396,7 @@ assert_eq!(treap.into_vec(), vec![0, 3, 20, 1, 4]);
 次は、区間加算と区間和を扱う例です。
 
 ```rust
-use cp_library::data_structure::lazy_reversible_rbst::{
+use cp_data_structure::lazy_reversible_rbst::{
     LazyReversibleRbst, LazyReversibleRbstSpec,
 };
 
@@ -470,7 +493,7 @@ assert!(suffix.is_empty());
 重み付き Union-Find です。`merge(x, y, w)` は `weight(y) = weight(x) + w` となるように集合を併合します。
 
 ```rust
-use cp_library::data_structure::weighted_dsu::WeightedDsu;
+use cp_data_structure::weighted_dsu::WeightedDsu;
 
 let mut dsu = WeightedDsu::<i64>::new(4);
 
@@ -507,7 +530,7 @@ assert_eq!(dsu.diff(0, 3), None);
 有向グラフの隣接リストを参照で受け取り、各辺の始点が終点より前に現れる頂点順序を返します。
 
 ```rust
-use cp_library::graph::topological_sort;
+use cp_graph::topological_sort;
 
 let graph = vec![vec![1, 2], vec![3], vec![3], vec![]];
 assert_eq!(topological_sort(&graph), Some(vec![0, 1, 2, 3]));
@@ -525,7 +548,7 @@ assert_eq!(topological_sort(&[vec![1], vec![0]]), None);
 無向木の隣接リスト `Vec<Vec<usize>>` と根のインデックスを受け取り、親の配列と根から葉への幅優先順序を返します。
 
 ```rust
-use cp_library::graph::rooted_tree;
+use cp_graph::rooted_tree;
 
 let tree = vec![vec![1, 2], vec![0, 3], vec![0], vec![1]];
 let (parent, order) = rooted_tree(&tree, 0);
@@ -545,7 +568,7 @@ assert_eq!(order, vec![0, 1, 2, 3]);
 各頂点からちょうど 1 本の辺が出る有向グラフです。`next[v]` を頂点 `v` の行き先として構築します。
 
 ```rust
-use cp_library::graph::FunctionalGraph;
+use cp_graph::FunctionalGraph;
 
 let graph = FunctionalGraph::new(vec![1, 2, 1, 4, 3, 4, 6]);
 assert_eq!(graph.cycles(), vec![vec![1, 2], vec![3, 4], vec![6]]);
@@ -564,7 +587,7 @@ assert_eq!(graph.next(0), 1);
 `Vec<Vec<(usize, T)>>` の隣接リストと始点を受け取り、各頂点への最短距離を `Vec<T>` で返します。各要素は `(行き先の頂点, コスト)` です。
 
 ```rust
-use cp_library::graph::dijkstra;
+use cp_graph::dijkstra;
 
 let graph = vec![vec![(1, 4), (2, 1)], vec![], vec![(1, 2)], vec![]];
 assert_eq!(dijkstra(&graph, 0), vec![0, 3, 1, usize::MAX]);
@@ -584,7 +607,7 @@ assert_eq!(dijkstra(&graph, 0), vec![0, 3, 1, usize::MAX]);
 グリッド境界内の近傍座標を返します。
 
 ```rust
-use cp_library::grid::{neighbors4, neighbors8};
+use cp_grid::{neighbors4, neighbors8};
 
 assert_eq!(neighbors4(0, 0, 3, 3), vec![(0, 1), (1, 0)]);
 
@@ -604,14 +627,14 @@ assert!(n8.contains(&(2, 2)));
 2 から 36 進数までの基数変換を行います。入力は `Display` 実装型を受け取れます。
 
 ```rust
-use cp_library::math::base_conversion::convert_base;
+use cp_math::base_conversion::convert_base;
 
 assert_eq!(convert_base("255", 10, 16).unwrap(), "ff");
 assert_eq!(convert_base("ff", 16, 10).unwrap(), "255");
 assert_eq!(convert_base(-10, 10, 2).unwrap(), "-1010");
 ```
 
-- パス: `cp_library::math::base_conversion::convert_base`
+- パス: `cp_math::base_conversion::convert_base`
 - 変換元・変換先の基数は `2..=36`
 - 不正な基数や文字がある場合は `Err(&'static str)` を返します。
 
@@ -620,7 +643,7 @@ assert_eq!(convert_base(-10, 10, 2).unwrap(), "-1010");
 `Combination<T = u64>` は階乗と逆階乗を前計算して、素数 mod 上の `nCr`、`nPr`、`nHr` を型 `T` で返します。`T: Copy + TryInto<u128> + TryFrom<u128>` で、`u32`・`usize`・`i64`・`u128` などの整数型に対応します。
 
 ```rust
-use cp_library::math::combinations::Combination;
+use cp_math::combinations::Combination;
 
 const MOD: u64 = 1_000_000_007;
 let comb = Combination::new(100, MOD);
@@ -631,7 +654,7 @@ assert_eq!(comb.n_h_r(3, 2), 6);
 assert_eq!(comb.fact(5), 120);
 ```
 
-- パス: `cp_library::math::combinations::Combination`
+- パス: `cp_math::combinations::Combination`
 - `modulo` は Fermat の小定理で逆元を計算するため、素数を指定してください。
 - `new(max_n, modulo)` で `0..=max_n` まで前計算します。`modulo >= 2` かつ `max_n < modulo` が必要です。負の法やこの条件を満たさない入力は panic します。素数判定は行いません。
 - 例: `Combination::<usize>::new(100, 1_000_000_007)`。法と戻り値は同じ型です。内部では `u128` を使い、積が収まらない場合は繰り返し加算によって桁あふれを避けます。
@@ -647,7 +670,7 @@ assert_eq!(comb.fact(5), 120);
 整数型の最大公約数・最小公倍数を計算します。
 
 ```rust
-use cp_library::math::numeric::{gcd, lcm, GCD};
+use cp_math::numeric::{gcd, lcm, GCD};
 
 assert_eq!(gcd(12u64, 18), 6);
 assert_eq!(lcm(12u64, 18), 36);
@@ -655,7 +678,7 @@ assert_eq!(12usize.gcd(18), 6);
 assert_eq!(12usize.lcm(18), 36);
 ```
 
-- パス: `cp_library::math::numeric::{gcd, lcm, GCD}`
+- パス: `cp_math::numeric::{gcd, lcm, GCD}`
 - 対応型: `u8`, `u16`, `u32`, `u64`, `u128`, `usize`, `i8`, `i16`, `i32`, `i64`, `i128`, `isize`
 
 ### prime_factorize
@@ -663,7 +686,7 @@ assert_eq!(12usize.lcm(18), 36);
 決定的 Miller-Rabin 素数判定と Pollard's Rho 法を使って、`u64` を高速に素因数分解します。
 
 ```rust
-use cp_library::math::prime_factorization::prime_factorize;
+use cp_math::prime_factorization::prime_factorize;
 
 assert_eq!(prime_factorize(360), vec![(2, 3), (3, 2), (5, 1)]);
 assert_eq!(prime_factorize(1), vec![]);
@@ -678,7 +701,7 @@ assert_eq!(prime_factorize(1), vec![]);
 エラトステネスの篩を使い、指定値以下の素数を列挙します。
 
 ```rust
-use cp_library::math::prime_enumeration::enumerate_primes;
+use cp_math::prime_enumeration::enumerate_primes;
 
 assert_eq!(enumerate_primes(10), vec![2, 3, 5, 7]);
 assert_eq!(enumerate_primes(1), vec![]);
@@ -694,14 +717,14 @@ assert_eq!(enumerate_primes(1), vec![]);
 bool を `"Yes"` / `"No"` などの文字列へ変換します。マクロ版はそのまま `println!` します。
 
 ```rust
-use cp_library::utils::{yes_no, yes_no_custom};
+use cp_utils::{yes_no, yes_no_custom};
 
 assert_eq!(yes_no(true), "Yes");
 assert_eq!(yes_no(false), "No");
 assert_eq!(yes_no_custom(true, "YES", "NO"), "YES");
 
-cp_library::yes_no!(true);
-cp_library::yes_no_custom!(false, "Possible", "Impossible");
+cp_utils::yes_no!(true);
+cp_utils::yes_no_custom!(false, "Possible", "Impossible");
 ```
 
 関数:

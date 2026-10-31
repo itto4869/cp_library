@@ -13,7 +13,7 @@ use std::ops::Add;
 /// Takes O(n) time and O(n) space, assuming constant-time arithmetic.
 ///
 /// ```
-/// use cp_library::data_structure::prefix_sum::prefix_sum;
+/// use cp_data_structure::prefix_sum::prefix_sum;
 ///
 /// let values = vec![2, -1, 4, 3];
 /// let sums = prefix_sum(&values);

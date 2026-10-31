@@ -47,7 +47,7 @@ impl FunctionalGraph {
     ///
     /// # Examples
     /// ```
-    /// use cp_library::graph::FunctionalGraph;
+    /// use cp_graph::FunctionalGraph;
     ///
     /// let graph = FunctionalGraph::new(vec![1, 2, 1, 4, 3, 4, 6]);
     /// assert_eq!(graph.cycles(), vec![vec![1, 2], vec![3, 4], vec![6]]);

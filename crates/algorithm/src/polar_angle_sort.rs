@@ -18,7 +18,7 @@ use std::cmp::Ordering;
 ///
 /// # Examples
 /// ```
-/// use cp_library::algorithm::polar_angle_sort;
+/// use cp_algorithm::polar_angle_sort;
 ///
 /// let points = vec![(0, -1), (-1, 0), (0, 1), (1, 0)];
 /// assert_eq!(polar_angle_sort(&points), vec![(1, 0), (0, 1), (-1, 0), (0, -1)]);

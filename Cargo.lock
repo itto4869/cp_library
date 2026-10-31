@@ -9,8 +9,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f224825847080e387f2f23822f307f5b0e41f3f9d70076ea0452c7b032d603c9"
 
 [[package]]
-name = "cp_library"
+name = "cp_algorithm"
+version = "0.1.0"
+
+[[package]]
+name = "cp_data_structure"
 version = "0.1.0"
 dependencies = [
  "ac-library-rs",
 ]
+
+[[package]]
+name = "cp_graph"
+version = "0.1.0"
+
+[[package]]
+name = "cp_grid"
+version = "0.1.0"
+
+[[package]]
+name = "cp_math"
+version = "0.1.0"
+
+[[package]]
+name = "cp_utils"
+version = "0.1.0"

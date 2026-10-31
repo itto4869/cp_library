@@ -9,7 +9,7 @@
 /// Panics if the inversion count exceeds `usize::MAX`.
 ///
 /// ```
-/// use cp_library::algorithm::inversion_count;
+/// use cp_algorithm::inversion_count;
 /// assert_eq!(inversion_count(&[3, -1, 2, -1]), 4);
 /// ```
 pub fn inversion_count<T: Ord>(values: &[T]) -> usize {

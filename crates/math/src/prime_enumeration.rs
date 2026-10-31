@@ -10,7 +10,7 @@
 /// # Examples
 ///
 /// ```
-/// use cp_library::math::prime_enumeration::enumerate_primes;
+/// use cp_math::prime_enumeration::enumerate_primes;
 ///
 /// assert_eq!(enumerate_primes(10), vec![2, 3, 5, 7]);
 /// assert!(enumerate_primes(1).is_empty());

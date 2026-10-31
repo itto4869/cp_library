@@ -1,0 +1,9 @@
+[package]
+name = "cp_data_structure"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+ac-library-rs.workspace = true
